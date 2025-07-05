@@ -119,6 +119,26 @@ def initialize_session_state():
         # Try to load API key from environment variables
         api_key_from_env = os.environ.get("OPENROUTER_API_KEY", "")
         st.session_state.api_key = api_key_from_env
+    if 'qwen_api_key' not in st.session_state:
+        # Try to load Qwen API key from environment variables
+        qwen_api_key_from_env = os.environ.get("QWEN_API_KEY", "")
+        st.session_state.qwen_api_key = qwen_api_key_from_env
+    if 'mistral_api_key' not in st.session_state:
+        # Try to load Mistral API key from environment variables
+        mistral_api_key_from_env = os.environ.get("MISTRAL_API_KEY", "")
+        st.session_state.mistral_api_key = mistral_api_key_from_env
+    if 'kimi_api_key' not in st.session_state:
+        # Try to load Kimi API key from environment variables
+        kimi_api_key_from_env = os.environ.get("KIMI_API_KEY", "")
+        st.session_state.kimi_api_key = kimi_api_key_from_env
+    if 'glm_api_key' not in st.session_state:
+        # Try to load GLM API key from environment variables
+        glm_api_key_from_env = os.environ.get("GLM_API_KEY", "")
+        st.session_state.glm_api_key = glm_api_key_from_env
+    if 'dolphin_api_key' not in st.session_state:
+        # Try to load Dolphin API key from environment variables
+        dolphin_api_key_from_env = os.environ.get("DOLPHIN_API_KEY", "")
+        st.session_state.dolphin_api_key = dolphin_api_key_from_env
     if 'selected_model' not in st.session_state:
         st.session_state.selected_model = "deepseek/deepseek-chat"
 
@@ -132,8 +152,11 @@ def display_character_info(character):
             # Display avatar if available
             if character.get('avatar_url'):
                 try:
-                    if os.path.exists(character['avatar_url']):
-                        st.image(character['avatar_url'], width=150)
+                    avatar_path = character['avatar_url']
+                    if os.path.exists(avatar_path):
+                        st.image(avatar_path, width=150)
+                    elif avatar_path.startswith(('http://', 'https://')):
+                        st.image(avatar_path, width=150)
                     else:
                         st.image("https://i.imgur.com/J5oMdG7.png", width=150)  # Default avatar
                 except Exception as e:
@@ -177,11 +200,19 @@ def display_chat_message(message, is_user=True):
         avatar_html = ""
         if st.session_state.current_persona and st.session_state.current_persona.get('avatar_url'):
             try:
-                if os.path.exists(st.session_state.current_persona.get('avatar_url')):
-                    avatar_html = f'<img src="{st.session_state.current_persona.get("avatar_url")}" class="message-avatar" alt="You" />'
+                avatar_path = st.session_state.current_persona.get('avatar_url')
+                # Check if it's a local file path or URL
+                if os.path.exists(avatar_path):
+                    # For local files, use the file:// protocol with absolute path
+                    abs_path = os.path.abspath(avatar_path)
+                    avatar_html = f'<img src="file://{abs_path}" class="message-avatar" alt="You" />'
+                elif avatar_path and avatar_path.startswith(('http://', 'https://')):
+                    # For URLs, use them directly
+                    avatar_html = f'<img src="{avatar_path}" class="message-avatar" alt="You" />'
                 else:
                     avatar_html = '<img src="https://i.imgur.com/J5oMdG7.png" class="message-avatar" alt="You" />'
-            except:
+            except Exception as e:
+                print(f"Error loading persona avatar: {str(e)}")
                 avatar_html = '<img src="https://i.imgur.com/J5oMdG7.png" class="message-avatar" alt="You" />'
         else:
             avatar_html = '<img src="https://i.imgur.com/J5oMdG7.png" class="message-avatar" alt="You" />'
@@ -204,11 +235,19 @@ def display_chat_message(message, is_user=True):
         avatar_html = ""
         if not is_user and st.session_state.current_character and st.session_state.current_character.get('avatar_url'):
             try:
-                if os.path.exists(st.session_state.current_character['avatar_url']):
-                    avatar_html = f'<img src="{st.session_state.current_character["avatar_url"]}" class="message-avatar" alt="{character_name}" />'
+                avatar_path = st.session_state.current_character['avatar_url']
+                # Check if it's a local file path or URL
+                if os.path.exists(avatar_path):
+                    # For local files, use the file:// protocol with absolute path
+                    abs_path = os.path.abspath(avatar_path)
+                    avatar_html = f'<img src="file://{abs_path}" class="message-avatar" alt="{character_name}" />'
+                elif avatar_path.startswith(('http://', 'https://')):
+                    # For URLs, use them directly
+                    avatar_html = f'<img src="{avatar_path}" class="message-avatar" alt="{character_name}" />'
                 else:
                     avatar_html = '<img src="https://i.imgur.com/J5oMdG7.png" class="message-avatar" alt="AI" />'
-            except:
+            except Exception as e:
+                print(f"Error loading character avatar: {str(e)}")
                 avatar_html = '<img src="https://i.imgur.com/J5oMdG7.png" class="message-avatar" alt="AI" />'
         else:
             # Default avatar
@@ -248,8 +287,47 @@ def add_memory_to_character(character_name, memory_text):
         st.session_state.current_character = char_manager.get_character(character_name)
     return result
 
+# Initialize session state variables at module level to ensure they exist before any function calls
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = []
+if 'current_character' not in st.session_state:
+    st.session_state.current_character = None
+if 'current_persona' not in st.session_state:
+    st.session_state.current_persona = None
+if 'editing_character' not in st.session_state:
+    st.session_state.editing_character = False
+if 'editing_persona' not in st.session_state:
+    st.session_state.editing_persona = False
+if 'api_key' not in st.session_state:
+    # Try to load API key from environment variables
+    api_key_from_env = os.environ.get("OPENROUTER_API_KEY", "")
+    st.session_state.api_key = api_key_from_env
+if 'qwen_api_key' not in st.session_state:
+    # Try to load Qwen API key from environment variables
+    qwen_api_key_from_env = os.environ.get("QWEN_API_KEY", "")
+    st.session_state.qwen_api_key = qwen_api_key_from_env
+if 'mistral_api_key' not in st.session_state:
+    # Try to load Mistral API key from environment variables
+    mistral_api_key_from_env = os.environ.get("MISTRAL_API_KEY", "")
+    st.session_state.mistral_api_key = mistral_api_key_from_env
+if 'kimi_api_key' not in st.session_state:
+    # Try to load Kimi API key from environment variables
+    kimi_api_key_from_env = os.environ.get("KIMI_API_KEY", "")
+    st.session_state.kimi_api_key = kimi_api_key_from_env
+if 'glm_api_key' not in st.session_state:
+    # Try to load GLM API key from environment variables
+    glm_api_key_from_env = os.environ.get("GLM_API_KEY", "")
+    st.session_state.glm_api_key = glm_api_key_from_env
+if 'dolphin_api_key' not in st.session_state:
+    # Try to load Dolphin API key from environment variables
+    dolphin_api_key_from_env = os.environ.get("DOLPHIN_API_KEY", "")
+    st.session_state.dolphin_api_key = dolphin_api_key_from_env
+if 'selected_model' not in st.session_state:
+    st.session_state.selected_model = "deepseek/deepseek-chat"
+
 def main():
     """Main application function"""
+    # Call the initialize function for any additional setup
     initialize_session_state()
     
     # Initialize managers
@@ -262,46 +340,199 @@ def main():
         st.header("⚙️ Configuration")
         
         # API Key input
+        st.subheader("API Keys")
         api_key = st.text_input(
-            "OpenRouter API Key", 
+            "OpenRouter API Key (DeepSeek)", 
             type="password", 
             value=st.session_state.api_key,
-            help="Enter your OpenRouter.ai API key"
+            help="Enter your OpenRouter.ai API key for DeepSeek model"
         )
         if api_key:
             st.session_state.api_key = api_key
             
-        # Validate API key
+        qwen_api_key = st.text_input(
+            "OpenRouter API Key (Qwen)", 
+            type="password", 
+            value=st.session_state.qwen_api_key,
+            help="Enter your OpenRouter.ai API key for Qwen model"
+        )
+        if qwen_api_key:
+            st.session_state.qwen_api_key = qwen_api_key
+            
+        mistral_api_key = st.text_input(
+            "OpenRouter API Key (Mistral)", 
+            type="password", 
+            value=st.session_state.mistral_api_key,
+            help="Enter your OpenRouter.ai API key for Mistral model"
+        )
+        if mistral_api_key:
+            st.session_state.mistral_api_key = mistral_api_key
+            
+        kimi_api_key = st.text_input(
+            "OpenRouter API Key (Kimi Dev 72B)", 
+            type="password", 
+            value=st.session_state.kimi_api_key,
+            help="Enter your OpenRouter.ai API key for Kimi Dev 72B model"
+        )
+        if kimi_api_key:
+            st.session_state.kimi_api_key = kimi_api_key
+            
+        glm_api_key = st.text_input(
+            "OpenRouter API Key (THUDM GLM Z1 32B)", 
+            type="password", 
+            value=st.session_state.glm_api_key,
+            help="Enter your OpenRouter.ai API key for THUDM GLM Z1 32B model"
+        )
+        if glm_api_key:
+            st.session_state.glm_api_key = glm_api_key
+            
+        dolphin_api_key = st.text_input(
+            "OpenRouter API Key (Dolphin 3.0)", 
+            type="password", 
+            value=st.session_state.dolphin_api_key,
+            help="Enter your OpenRouter.ai API key for Dolphin 3.0 model"
+        )
+        if dolphin_api_key:
+            st.session_state.dolphin_api_key = dolphin_api_key
+            
+        # Validate API keys
         if st.session_state.api_key:
             if 'api_key_valid' not in st.session_state or st.session_state.api_key_valid is None:
-                with st.spinner("Validating API key..."):
+                with st.spinner("Validating DeepSeek API key..."):
                     is_valid = validate_api_key(st.session_state.api_key)
                     st.session_state.api_key_valid = is_valid
             
             if st.session_state.api_key_valid:
-                st.success("✅ API key is valid")
+                st.success("✅ DeepSeek API key is valid")
             else:
-                st.error("❌ API key is invalid or could not be validated")
+                st.error("❌ DeepSeek API key is invalid or could not be validated")
         else:
-            st.warning("Please enter your OpenRouter API key")
+            st.warning("Please enter your OpenRouter API key for DeepSeek")
+            
+        if st.session_state.qwen_api_key:
+            if 'qwen_api_key_valid' not in st.session_state or st.session_state.qwen_api_key_valid is None:
+                with st.spinner("Validating Qwen API key..."):
+                    is_valid = validate_api_key(st.session_state.qwen_api_key)
+                    st.session_state.qwen_api_key_valid = is_valid
+            
+            if st.session_state.qwen_api_key_valid:
+                st.success("✅ Qwen API key is valid")
+            else:
+                st.error("❌ Qwen API key is invalid or could not be validated")
+        else:
+            st.warning("Please enter your OpenRouter API key for Qwen")
+            
+        if st.session_state.mistral_api_key:
+            if 'mistral_api_key_valid' not in st.session_state or st.session_state.mistral_api_key_valid is None:
+                with st.spinner("Validating Mistral API key..."):
+                    is_valid = validate_api_key(st.session_state.mistral_api_key)
+                    st.session_state.mistral_api_key_valid = is_valid
+            
+            if st.session_state.mistral_api_key_valid:
+                st.success("✅ Mistral API key is valid")
+            else:
+                st.error("❌ Mistral API key is invalid or could not be validated")
+        else:
+            st.warning("Please enter your OpenRouter API key for Mistral")
+            
+        if st.session_state.kimi_api_key:
+            if 'kimi_api_key_valid' not in st.session_state or st.session_state.kimi_api_key_valid is None:
+                with st.spinner("Validating Kimi API key..."):
+                    is_valid = validate_api_key(st.session_state.kimi_api_key)
+                    st.session_state.kimi_api_key_valid = is_valid
+            
+            if st.session_state.kimi_api_key_valid:
+                st.success("✅ Kimi API key is valid")
+            else:
+                st.error("❌ Kimi API key is invalid or could not be validated")
+        else:
+            st.warning("Please enter your OpenRouter API key for Kimi Dev 72B")
+            
+        if st.session_state.glm_api_key:
+            if 'glm_api_key_valid' not in st.session_state or st.session_state.glm_api_key_valid is None:
+                with st.spinner("Validating GLM API key..."):
+                    is_valid = validate_api_key(st.session_state.glm_api_key)
+                    st.session_state.glm_api_key_valid = is_valid
+            
+            if st.session_state.glm_api_key_valid:
+                st.success("✅ GLM API key is valid")
+            else:
+                st.error("❌ GLM API key is invalid or could not be validated")
+        else:
+            st.warning("Please enter your OpenRouter API key for THUDM GLM Z1 32B")
+            
+        if st.session_state.dolphin_api_key:
+            if 'dolphin_api_key_valid' not in st.session_state or st.session_state.dolphin_api_key_valid is None:
+                with st.spinner("Validating Dolphin API key..."):
+                    is_valid = validate_api_key(st.session_state.dolphin_api_key)
+                    st.session_state.dolphin_api_key_valid = is_valid
+            
+            if st.session_state.dolphin_api_key_valid:
+                st.success("✅ Dolphin API key is valid")
+            else:
+                st.error("❌ Dolphin API key is invalid or could not be validated")
+        else:
+            st.warning("Please enter your OpenRouter API key for Dolphin 3.0")
             
         # Add buttons for API key management
-        col1, col2 = st.columns(2)
+        st.subheader("API Key Management")
         
+        # DeepSeek API key management
+        col1, col2 = st.columns(2)
         with col1:
-            if st.session_state.api_key and st.button("🔒 Clear API Key"):
+            if st.session_state.api_key and st.button("🔒 Clear DeepSeek Key"):
                 st.session_state.api_key = ""
                 st.session_state.api_key_valid = None
                 st.rerun()
                 
+        # Qwen API key management
+        col3, col4 = st.columns(2)
+        with col3:
+            if st.session_state.qwen_api_key and st.button("🔒 Clear Qwen Key"):
+                st.session_state.qwen_api_key = ""
+                st.session_state.qwen_api_key_valid = None
+                st.rerun()
+                
+        # Mistral API key management
+        col5, col6 = st.columns(2)
+        with col5:
+            if st.session_state.mistral_api_key and st.button("🔒 Clear Mistral Key"):
+                st.session_state.mistral_api_key = ""
+                st.session_state.mistral_api_key_valid = None
+                st.rerun()
+                
+        # Kimi API key management
+        col7, col8 = st.columns(2)
+        with col7:
+            if st.session_state.kimi_api_key and st.button("🔒 Clear Kimi Key"):
+                st.session_state.kimi_api_key = ""
+                st.session_state.kimi_api_key_valid = None
+                st.rerun()
+                
+        # GLM API key management
+        col9, col10 = st.columns(2)
+        with col9:
+            if st.session_state.glm_api_key and st.button("🔒 Clear GLM Key"):
+                st.session_state.glm_api_key = ""
+                st.session_state.glm_api_key_valid = None
+                st.rerun()
+                
+        # Dolphin API key management
+        col11, col12 = st.columns(2)
+        with col11:
+            if st.session_state.dolphin_api_key and st.button("🔒 Clear Dolphin Key"):
+                st.session_state.dolphin_api_key = ""
+                st.session_state.dolphin_api_key_valid = None
+                st.rerun()
+                
         with col2:
-            if st.session_state.api_key and st.button("🔄 Test Connection"):
+            if st.session_state.api_key and st.button("🔄 Test DeepSeek Connection"):
                 with st.spinner("Testing connection to DeepSeek model..."):
                     api_handler = OpenRouterAPI(st.session_state.api_key)
                     result = api_handler.test_connection()
                     
                     if result["success"]:
-                        st.success("✅ Connection successful!")
+                        st.success("✅ DeepSeek connection successful!")
                         with st.expander("View test details"):
                             st.write("**Response:**")
                             st.write(result["response"])
@@ -314,17 +545,131 @@ def main():
                             st.write("**Cost Estimate:**")
                             st.text(f"${result['estimated_cost']:.6f}")
                     else:
-                        st.error(f"❌ Connection failed: {result['message']}")
+                        st.error(f"❌ DeepSeek connection failed: {result['message']}")
+                        
+        with col4:
+            if st.session_state.qwen_api_key and st.button("🔄 Test Qwen Connection"):
+                with st.spinner("Testing connection to Qwen model..."):
+                    api_handler = OpenRouterAPI(st.session_state.qwen_api_key)
+                    result = api_handler.test_connection(model="qwen/qwen3-235b-a22b:free")
+                    
+                    if result["success"]:
+                        st.success("✅ Qwen connection successful!")
+                        with st.expander("View test details"):
+                            st.write("**Response:**")
+                            st.write(result["response"])
+                            
+                            st.write("**Token Usage:**")
+                            st.text(f"Prompt Tokens: {result['usage']['prompt_tokens']}")
+                            st.text(f"Completion Tokens: {result['usage']['completion_tokens']}")
+                            st.text(f"Total Tokens: {result['usage']['total_tokens']}")
+                            
+                            st.write("**Cost Estimate:**")
+                            st.text(f"${result['estimated_cost']:.6f}")
+                    else:
+                        st.error(f"❌ Qwen connection failed: {result['message']}")
+                        
+        with col6:
+            if st.session_state.mistral_api_key and st.button("🔄 Test Mistral Connection"):
+                with st.spinner("Testing connection to Mistral model..."):
+                    api_handler = OpenRouterAPI(st.session_state.mistral_api_key)
+                    result = api_handler.test_connection(model="mistralai/mistral-7b-instruct")
+                    
+                    if result["success"]:
+                        st.success("✅ Mistral connection successful!")
+                        with st.expander("View test details"):
+                            st.write("**Response:**")
+                            st.write(result["response"])
+                            
+                            st.write("**Token Usage:**")
+                            st.text(f"Prompt Tokens: {result['usage']['prompt_tokens']}")
+                            st.text(f"Completion Tokens: {result['usage']['completion_tokens']}")
+                            st.text(f"Total Tokens: {result['usage']['total_tokens']}")
+                            
+                            st.write("**Cost Estimate:**")
+                            st.text(f"${result['estimated_cost']:.6f}")
+                    else:
+                        st.error(f"❌ Mistral connection failed: {result['message']}")
+                        
+        with col8:
+            if st.session_state.kimi_api_key and st.button("🔄 Test Kimi Connection"):
+                with st.spinner("Testing connection to Kimi model..."):
+                    api_handler = OpenRouterAPI(st.session_state.kimi_api_key)
+                    result = api_handler.test_connection(model="01-ai/yi-large")
+                    
+                    if result["success"]:
+                        st.success("✅ Kimi connection successful!")
+                        with st.expander("View test details"):
+                            st.write("**Response:**")
+                            st.write(result["response"])
+                            
+                            st.write("**Token Usage:**")
+                            st.text(f"Prompt Tokens: {result['usage']['prompt_tokens']}")
+                            st.text(f"Completion Tokens: {result['usage']['completion_tokens']}")
+                            st.text(f"Total Tokens: {result['usage']['total_tokens']}")
+                            
+                            st.write("**Cost Estimate:**")
+                            st.text(f"${result['estimated_cost']:.6f}")
+                    else:
+                        st.error(f"❌ Kimi connection failed: {result['message']}")
+                        
+        with col10:
+            if st.session_state.glm_api_key and st.button("🔄 Test GLM Connection"):
+                with st.spinner("Testing connection to GLM model..."):
+                    api_handler = OpenRouterAPI(st.session_state.glm_api_key)
+                    result = api_handler.test_connection(model="thudm/glm-z1-32b:free")
+                    
+                    if result["success"]:
+                        st.success("✅ GLM connection successful!")
+                        with st.expander("View test details"):
+                            st.write("**Response:**")
+                            st.write(result["response"])
+                            
+                            st.write("**Token Usage:**")
+                            st.text(f"Prompt Tokens: {result['usage']['prompt_tokens']}")
+                            st.text(f"Completion Tokens: {result['usage']['completion_tokens']}")
+                            st.text(f"Total Tokens: {result['usage']['total_tokens']}")
+                            
+                            st.write("**Cost Estimate:**")
+                            st.text(f"${result['estimated_cost']:.6f}")
+                    else:
+                        st.error(f"❌ GLM connection failed: {result['message']}")
+                        
+        with col12:
+            if st.session_state.dolphin_api_key and st.button("🔄 Test Dolphin Connection"):
+                with st.spinner("Testing connection to Dolphin model..."):
+                    api_handler = OpenRouterAPI(st.session_state.dolphin_api_key)
+                    result = api_handler.test_connection(model="cognitivecomputations/dolphin3.0-mistral-24b:free")
+                    
+                    if result["success"]:
+                        st.success("✅ Dolphin connection successful!")
+                        with st.expander("View test details"):
+                            st.write("**Response:**")
+                            st.write(result["response"])
+                            
+                            st.write("**Token Usage:**")
+                            st.text(f"Prompt Tokens: {result['usage']['prompt_tokens']}")
+                            st.text(f"Completion Tokens: {result['usage']['completion_tokens']}")
+                            st.text(f"Total Tokens: {result['usage']['total_tokens']}")
+                            
+                            st.write("**Cost Estimate:**")
+                            st.text(f"${result['estimated_cost']:.6f}")
+                    else:
+                        st.error(f"❌ Dolphin connection failed: {result['message']}")
 
         
         # Model selection with pricing info
         models = [
             {"id": "deepseek/deepseek-chat", "name": "DeepSeek Chat", "cost": "$0.50 / 1M tokens"},
+            {"id": "qwen/qwen3-235b-a22b:free", "name": "Qwen", "cost": "$0.50 / 1M tokens"},
             {"id": "openai/gpt-4o", "name": "GPT-4o", "cost": "$5.00 / 1M tokens"},
             {"id": "openai/gpt-4o-mini", "name": "GPT-4o Mini", "cost": "$0.80 / 1M tokens"},
             {"id": "anthropic/claude-3.5-sonnet", "name": "Claude 3.5 Sonnet", "cost": "$3.00 / 1M tokens"},
             {"id": "mistralai/mistral-7b-instruct", "name": "Mistral 7B", "cost": "$0.20 / 1M tokens"},
-            {"id": "meta-llama/llama-3.1-8b-instruct", "name": "Llama 3.1 8B", "cost": "$0.20 / 1M tokens"}
+            {"id": "meta-llama/llama-3.1-8b-instruct", "name": "Llama 3.1 8B", "cost": "$0.20 / 1M tokens"},
+            {"id": "01-ai/yi-large", "name": "Kimi Dev 72B", "cost": "$1.50 / 1M tokens"},
+            {"id": "thudm/glm-z1-32b:free", "name": "THUDM: GLM Z1 32B", "cost": "$1.00 / 1M tokens"},
+            {"id": "cognitivecomputations/dolphin3.0-mistral-24b:free", "name": "Dolphin 3.0", "cost": "$0.20 / 1M tokens"}
         ]
         
         model_ids = [model["id"] for model in models]
@@ -346,9 +691,19 @@ def main():
         if selected_model_info:
             st.info(f"Using {selected_model_info['name']} (Approx. cost: {selected_model_info['cost']})")
             
-            # Show DeepSeek message if selected
+            # Show model-specific messages
             if "deepseek" in selected_model.lower():
                 st.success("✅ Using DeepSeek model as requested")
+            elif "qwen" in selected_model.lower():
+                st.success("✅ Using Qwen model as requested")
+            elif "mistral" in selected_model.lower():
+                st.success("✅ Using Mistral model as requested")
+            elif "yi-large" in selected_model.lower():
+                st.success("✅ Using Kimi Dev 72B model as requested")
+            elif "glm" in selected_model.lower():
+                st.success("✅ Using THUDM GLM Z1 32B model as requested")
+            elif "dolphin" in selected_model.lower():
+                st.success("✅ Using Dolphin 3.0 model as requested")
 
         
         # Model parameters
@@ -644,20 +999,61 @@ def main():
                 display_chat_message(char_msg, is_user=False)
         
         # Chat input
-        if st.session_state.current_character and st.session_state.api_key:
-            user_input = st.text_area(
-                "Your message:",
-                height=100,
-                key="user_input",
-                placeholder="Type your message here..."
-            )
+        # Check if we have the appropriate API key for the selected model
+        has_required_api_key = False
+        if "qwen" in st.session_state.selected_model.lower() and st.session_state.qwen_api_key:
+            has_required_api_key = True
+        elif "mistral" in st.session_state.selected_model.lower() and st.session_state.mistral_api_key:
+            has_required_api_key = True
+        elif "yi-large" in st.session_state.selected_model.lower() and st.session_state.kimi_api_key:
+            has_required_api_key = True
+        elif "glm" in st.session_state.selected_model.lower() and st.session_state.glm_api_key:
+            has_required_api_key = True
+        elif "dolphin" in st.session_state.selected_model.lower() and st.session_state.dolphin_api_key:
+            has_required_api_key = True
+        elif st.session_state.api_key:
+            has_required_api_key = True
+            
+        if st.session_state.current_character:
+                
+            if has_required_api_key:
+                user_input = st.text_area(
+                    "Your message:",
+                    height=100,
+                    key="user_input",
+                    placeholder="Type your message here..."
+                )
+            else:
+                if "qwen" in st.session_state.selected_model.lower():
+                    st.warning("Please enter your Qwen API key in the sidebar.")
+                elif "mistral" in st.session_state.selected_model.lower():
+                    st.warning("Please enter your Mistral API key in the sidebar.")
+                elif "yi-large" in st.session_state.selected_model.lower():
+                    st.warning("Please enter your Kimi API key in the sidebar.")
+                elif "glm" in st.session_state.selected_model.lower():
+                    st.warning("Please enter your GLM API key in the sidebar.")
+                elif "dolphin" in st.session_state.selected_model.lower():
+                    st.warning("Please enter your Dolphin API key in the sidebar.")
+                else:
+                    st.warning("Please enter your OpenRouter API key in the sidebar.")
             
             col_send, col_clear = st.columns([3, 1])
             with col_send:
                 if st.button("📤 Send Message", type="primary"):
                     if user_input.strip():
-                        # Initialize API handler
-                        api_handler = OpenRouterAPI(st.session_state.api_key)
+                        # Initialize API handler with the appropriate API key based on the selected model
+                        if "qwen" in st.session_state.selected_model.lower() and st.session_state.qwen_api_key:
+                            api_handler = OpenRouterAPI(st.session_state.qwen_api_key)
+                        elif "mistral" in st.session_state.selected_model.lower() and st.session_state.mistral_api_key:
+                            api_handler = OpenRouterAPI(st.session_state.mistral_api_key)
+                        elif "yi-large" in st.session_state.selected_model.lower() and st.session_state.kimi_api_key:
+                            api_handler = OpenRouterAPI(st.session_state.kimi_api_key)
+                        elif "glm" in st.session_state.selected_model.lower() and st.session_state.glm_api_key:
+                            api_handler = OpenRouterAPI(st.session_state.glm_api_key)
+                        elif "dolphin" in st.session_state.selected_model.lower() and st.session_state.dolphin_api_key:
+                            api_handler = OpenRouterAPI(st.session_state.dolphin_api_key)
+                        else:
+                            api_handler = OpenRouterAPI(st.session_state.api_key)
                         
                         # Create system prompt from character and persona
                         system_prompt = char_manager.create_system_prompt(
@@ -681,7 +1077,7 @@ def main():
                             try:
                                 response_data = api_handler.get_response(
                                     messages=messages,
-                                    model=selected_model,
+                                    model=st.session_state.selected_model,
                                     temperature=temperature,
                                     max_tokens=max_tokens
                                 )
@@ -714,8 +1110,19 @@ def main():
         else:
             if not st.session_state.current_character:
                 st.warning("Please select a character first.")
-            if not st.session_state.api_key:
-                st.warning("Please enter your OpenRouter API key in the sidebar.")
+            if not has_required_api_key:
+                if "qwen" in st.session_state.selected_model.lower():
+                    st.warning("Please enter your Qwen API key in the sidebar.")
+                elif "mistral" in st.session_state.selected_model.lower():
+                    st.warning("Please enter your Mistral API key in the sidebar.")
+                elif "yi-large" in st.session_state.selected_model.lower():
+                    st.warning("Please enter your Kimi API key in the sidebar.")
+                elif "glm" in st.session_state.selected_model.lower():
+                    st.warning("Please enter your GLM API key in the sidebar.")
+                elif "dolphin" in st.session_state.selected_model.lower():
+                    st.warning("Please enter your Dolphin API key in the sidebar.")
+                else:
+                    st.warning("Please enter your OpenRouter API key in the sidebar.")
     
     with col2:
         st.header("📊 Chat Stats")

@@ -28,19 +28,31 @@ pip install -r requirements.txt
 
 ## Usage
 
-1. Run the Streamlit app:
+1. Create a `.env` file in the project root directory with your API keys (optional but recommended):
+
+```
+# .env file example
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+QWEN_API_KEY=your_qwen_api_key_here
+MISTRAL_API_KEY=your_mistral_api_key_here
+KIMI_API_KEY=your_kimi_api_key_here
+GLM_API_KEY=your_glm_api_key_here
+DOLPHIN_API_KEY=your_dolphin_api_key_here
+```
+
+2. Run the Streamlit app:
 
 ```bash
 streamlit run main.py
 ```
 
-2. Open your web browser and go to `http://localhost:8501`
+3. Open your web browser and go to `http://localhost:8501`
 
-3. Enter your OpenRouter.ai API key in the sidebar
+4. If you didn't set up the `.env` file, enter your OpenRouter.ai API key(s) in the sidebar
 
-4. Select or create a character
+5. Select or create a character
 
-5. Start chatting!
+6. Start chatting!
 
 ## Project Structure
 
