@@ -66,6 +66,14 @@ st.markdown("""
 .chat-message span {
     color: #ffffff;
 }
+/* Style for emphasized text */
+.chat-message em {
+    color: #444444;
+    font-style: italic;
+    background-color: rgba(255, 255, 255, 0.7);
+    padding: 0 3px;
+    border-radius: 3px;
+}
 .memory-item {
     background-color: #f0f0f0;
     padding: 8px;
@@ -99,6 +107,53 @@ st.markdown("""
     border-color: #2980b9;
     background-color: #e1f0fa;
     box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+}
+/* Mobile UI improvements */
+@media (max-width: 768px) {
+    .chat-message {
+        padding: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+    .user-message {
+        margin-left: 0.5rem;
+    }
+    .character-message {
+        margin-right: 0.5rem;
+    }
+    .message-avatar {
+        width: 32px;
+        height: 32px;
+    }
+    .stButton > button {
+        padding: 0.5rem;
+        font-size: 0.9rem;
+    }
+    /* Improve form elements on mobile */
+    input, select, textarea {
+        font-size: 16px !important; /* Prevents zoom on focus in iOS */
+    }
+    /* Make sidebar full width on mobile when expanded */
+    .st-emotion-cache-1cypcdb.ea3mdgi1 {
+        width: 100% !important;
+    }
+}
+/* JSON import/export buttons */
+.json-buttons {
+    display: flex;
+    gap: 10px;
+    margin: 10px 0;
+}
+.json-buttons button {
+    flex: 1;
+    padding: 8px;
+    border-radius: 5px;
+    background-color: #f0f7ff;
+    border: 1px solid #3498db;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.json-buttons button:hover {
+    background-color: #e1f0fa;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -195,6 +250,13 @@ def display_character_info(character):
 
 def display_chat_message(message, is_user=True):
     """Display a chat message with proper styling"""
+    # Process message to convert *emphasized text* to <em> tags
+    import re
+    processed_message = message
+    if not is_user:  # Only process AI messages
+        # Replace text between asterisks with <em> tags
+        processed_message = re.sub(r'\*(.*?)\*', r'<em>\1</em>', message)
+    
     if is_user:
         # Get user avatar if a persona is selected
         avatar_html = ""
@@ -224,7 +286,7 @@ def display_chat_message(message, is_user=True):
             {avatar_html}
             <div>
                 <strong>{persona_name}:</strong><br>
-                <span>{message}</span>
+                <span>{processed_message}</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -258,7 +320,7 @@ def display_chat_message(message, is_user=True):
             {avatar_html}
             <div>
                 <strong>{character_name}:</strong><br>
-                <span>{message}</span>
+                <span>{processed_message}</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -1178,10 +1240,102 @@ def main():
         for char in characters:
             with st.expander(f"🎭 {char['name']}"):
                 st.write(f"**Personality:** {char['personality'][:100]}...")
-                if st.button(f"Load {char['name']}", key=f"load_{char['name']}"):
-                    st.session_state.current_character = char
-                    st.session_state.chat_history = []
-                    st.rerun()
+                # Use a form to prevent page refresh issues
+                with st.form(key=f"load_char_form_{char['name']}"):
+                    if st.form_submit_button(f"Load {char['name']}"):
+                        st.session_state.current_character = char
+                        st.session_state.chat_history = []
+                        st.rerun()
+        
+        # JSON Import/Export for Characters and Chat History
+        st.subheader("Import/Export")
+        
+        # Export Character
+        if st.session_state.current_character:
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("📤 Export Character"):
+                    char_json = json.dumps(st.session_state.current_character, indent=2)
+                    st.download_button(
+                        label="Download Character JSON",
+                        data=char_json,
+                        file_name=f"{st.session_state.current_character['name']}.json",
+                        mime="application/json"
+                    )
+            
+            # Export Chat History
+            with col2:
+                if st.button("📤 Export Chat History") and st.session_state.chat_history:
+                    chat_data = {
+                        "character": st.session_state.current_character,
+                        "timestamp": datetime.now().isoformat(),
+                        "messages": []
+                    }
+                    
+                    for user_msg, char_msg in st.session_state.chat_history:
+                        chat_data["messages"].append({
+                            "user": user_msg,
+                            "character": char_msg
+                        })
+                    
+                    chat_json = json.dumps(chat_data, indent=2)
+                    st.download_button(
+                        label="Download Chat History JSON",
+                        data=chat_json,
+                        file_name=f"{st.session_state.current_character['name']}_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                        mime="application/json"
+                    )
+        
+        # Import Character
+        with st.expander("Import Character or Chat History"):
+            import_type = st.radio("Import Type", ["Character", "Chat History"])
+            uploaded_file = st.file_uploader(f"Upload {import_type} JSON", type=["json"])
+            
+            if uploaded_file is not None:
+                try:
+                    content = uploaded_file.read()
+                    data = json.loads(content)
+                    
+                    if import_type == "Character":
+                        # Validate character data
+                        if "name" in data and "personality" in data and "backstory" in data:
+                            # Save character
+                            char_manager.save_character(data)
+                            st.success(f"Character '{data['name']}' imported successfully!")
+                            
+                            # Ask if user wants to load this character
+                            if st.button(f"Load imported character: {data['name']}"):
+                                st.session_state.current_character = data
+                                st.session_state.chat_history = []
+                                st.rerun()
+                        else:
+                            st.error("Invalid character data. JSON must include name, personality, and backstory.")
+                    
+                    elif import_type == "Chat History":
+                        # Validate chat history data
+                        if "character" in data and "messages" in data:
+                            # Check if character exists
+                            character = data.get("character")
+                            if character and "name" in character:
+                                # Convert messages to the format used by the app
+                                chat_history = []
+                                for msg in data.get("messages", []):
+                                    chat_history.append((msg.get("user", ""), msg.get("character", "")))
+                                
+                                # Load the character and chat history
+                                st.session_state.current_character = character
+                                st.session_state.chat_history = chat_history
+                                st.success(f"Chat history with '{character['name']}' imported successfully!")
+                                st.rerun()
+                            else:
+                                st.error("Invalid chat history data. Character information is missing.")
+                        else:
+                            st.error("Invalid chat history data. JSON must include character and messages.")
+                            
+                except Exception as e:
+                    st.error(f"Error importing file: {str(e)}")
+                    import traceback
+                    st.error(traceback.format_exc())
 
 if __name__ == "__main__":
     main()
