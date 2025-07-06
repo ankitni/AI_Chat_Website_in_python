@@ -2,6 +2,9 @@
 
 A web-based AI character chat interface similar to Character.AI or CrushOn.AI, built with Python and Streamlit. This application allows users to create and chat with custom AI characters using various language models via the OpenRouter.ai API.
 
+# The web app live in 
+<b> https://ai-chat-website.streamlit.app/ </b>
+
 ## Features
 
 - Create custom characters with unique personalities, backstories, and avatars
