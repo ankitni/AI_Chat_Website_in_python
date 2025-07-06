@@ -118,6 +118,10 @@ st.markdown("""
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     transition: transform 0.3s, box-shadow 0.3s;
     cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
 }
 .character-card:hover {
     transform: translateY(-5px);
@@ -166,6 +170,42 @@ st.markdown("""
     /* Improve mobile character cards */
     .character-card {
         margin-bottom: 15px;
+        padding: 10px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    /* Make character images responsive on mobile */
+    .character-card img {
+        max-width: 100%;
+        height: auto;
+        margin: 0 auto;
+        display: block;
+    }
+    /* Improve character name display */
+    .character-card h3 {
+        font-size: 1.1rem;
+        margin-top: 10px;
+        margin-bottom: 5px;
+        word-break: break-word;
+        hyphens: auto;
+    }
+    /* Improve button layout on mobile */
+    .character-card-buttons {
+        flex-direction: column;
+        gap: 8px;
+    }
+    .character-card-buttons button {
+        margin-top: 5px;
+        padding: 8px 0;
+        width: 100%;
+    }
+    /* Adjust column layout for better mobile experience */
+    .st-emotion-cache-1n76uvr.e1f1d6gn0,
+    .st-emotion-cache-1r6slb0.e1f1d6gn0,
+    .st-emotion-cache-12w0qpk.e1f1d6gn0 {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+        min-width: 100% !important;
     }
 }
 /* JSON import/export buttons */
@@ -1112,7 +1152,16 @@ def main():
         # Display character cards in a grid
         if characters:
             # Use columns to create a responsive grid
-            cols = st.columns(3)  # 3 columns for desktop, will stack on mobile
+            # Determine number of columns based on screen size (using session state)
+            if 'mobile_view' not in st.session_state:
+                st.session_state.mobile_view = False
+                
+            # Add a toggle for mobile view testing
+            mobile_view = st.checkbox("Mobile view", value=st.session_state.mobile_view, key="mobile_view_toggle")
+            st.session_state.mobile_view = mobile_view
+            
+            # Use different column layouts based on view mode
+            cols = st.columns(1 if mobile_view else 3)  # 1 column for mobile, 3 for desktop
             
             for i, character in enumerate(characters):
                 with cols[i % 3]:
