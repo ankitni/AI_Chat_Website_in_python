@@ -108,6 +108,33 @@ st.markdown("""
     background-color: #e1f0fa;
     box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
 }
+/* Character card styling */
+.character-card {
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 20px;
+    background-color: #f9f9f9;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transition: transform 0.3s, box-shadow 0.3s;
+    cursor: pointer;
+}
+.character-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+}
+.character-card img {
+    transition: transform 0.3s;
+    border-radius: 8px;
+}
+.character-card:hover img {
+    transform: scale(1.05);
+}
+.character-card-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+}
 /* Mobile UI improvements */
 @media (max-width: 768px) {
     .chat-message {
@@ -136,6 +163,10 @@ st.markdown("""
     .st-emotion-cache-1cypcdb.ea3mdgi1 {
         width: 100% !important;
     }
+    /* Improve mobile character cards */
+    .character-card {
+        margin-bottom: 15px;
+    }
 }
 /* JSON import/export buttons */
 .json-buttons {
@@ -156,6 +187,16 @@ st.markdown("""
     background-color: #e1f0fa;
 }
 </style>
+
+<script>
+function handleCardClick(characterName) {
+    // Find the chat button for this character and click it
+    const chatButton = document.querySelector(`button[key="chat_${characterName}"]`);
+    if (chatButton) {
+        chatButton.click();
+    }
+}
+</script>
 """, unsafe_allow_html=True)
 
 def initialize_session_state():
@@ -196,6 +237,11 @@ def initialize_session_state():
         st.session_state.dolphin_api_key = dolphin_api_key_from_env
     if 'selected_model' not in st.session_state:
         st.session_state.selected_model = "deepseek/deepseek-chat"
+    # New session state variables for character card UI
+    if 'chat_mode' not in st.session_state:
+        st.session_state.chat_mode = False
+    if 'editing_character_name' not in st.session_state:
+        st.session_state.editing_character_name = None
 
 def display_character_info(character):
     """Display character information in a nice format"""
@@ -395,7 +441,21 @@ def main():
     # Initialize managers
     char_manager = CharacterManager()
     
-    st.title("🤖 AI Character Chat Interface")
+    # Initialize chat mode if not present
+    if 'chat_mode' not in st.session_state:
+        st.session_state.chat_mode = False
+    
+    # Initialize selected character for editing
+    if 'editing_character_name' not in st.session_state:
+        st.session_state.editing_character_name = None
+    
+    # Initialize brief description field for characters
+    if 'brief_description' not in st.session_state:
+        st.session_state.brief_description = ""
+    
+    # Main title only shown in home mode
+    if not st.session_state.chat_mode:
+        st.title("🤖 AI Character Chat Interface")
     
     # Sidebar for configuration
     with st.sidebar:
@@ -881,25 +941,11 @@ def main():
         
         st.divider()
         
-        # Character management
-        st.header("👥 Character Management")
-        
-        # Load existing characters
+        # Character management - Create option only in sidebar
+        st.header("👥 Create Character")
+
+        # Load existing characters (but don't show selection in sidebar)
         characters = char_manager.load_characters()
-        character_names = ["None"] + [char['name'] for char in characters]
-        
-        selected_char_name = st.selectbox(
-            "Select Character",
-            character_names
-        )
-        
-        if selected_char_name != "None":
-            selected_char = next((char for char in characters if char['name'] == selected_char_name), None)
-            if selected_char != st.session_state.current_character:
-                st.session_state.current_character = selected_char
-                st.session_state.chat_history = []  # Clear chat when switching characters
-        else:
-            st.session_state.current_character = None
         
         # Character management options
         with st.expander("Manage Characters"):
@@ -1041,198 +1087,375 @@ def main():
                 char_manager.save_chat_history(st.session_state.chat_history, st.session_state.current_character)
                 st.success("Chat history saved!")
     
-    # Main chat interface
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        st.header("💬 Chat")
+    # Main content area - either character cards or chat interface
+    if not st.session_state.chat_mode:
+        # Display character cards in a grid
+        st.header("👥 Your Characters")
         
-        # Display current character info
-        if st.session_state.current_character:
-            display_character_info(st.session_state.current_character)
+        # Load all characters
+        characters = char_manager.load_characters()
+        
+        # Function to handle character card click
+        def character_card_clicked(character_name):
+            selected_char = next((char for char in characters if char['name'] == character_name), None)
+            if selected_char:
+                st.session_state.current_character = selected_char
+                st.session_state.chat_history = []  # Clear chat when switching characters
+                st.session_state.chat_mode = True
+                st.rerun()
+        
+        # Function to handle edit character button
+        def edit_character_button_clicked(character_name):
+            st.session_state.editing_character_name = character_name
+            st.rerun()
+        
+        # Display character cards in a grid
+        if characters:
+            # Use columns to create a responsive grid
+            cols = st.columns(3)  # 3 columns for desktop, will stack on mobile
+            
+            for i, character in enumerate(characters):
+                with cols[i % 3]:
+                    # Create a card-like container with border and padding using our CSS class
+                    st.markdown(f"""
+                    <div class='character-card' onclick='handleCardClick("{character['name']}");'>
+                        <h3 style='text-align: center; color: #2980b9; margin-bottom: 10px;'>{character['name']}</h3>
+                    """, unsafe_allow_html=True)
+                    
+                    # Display character avatar
+                    if character.get('avatar_url'):
+                        try:
+                            avatar_path = character['avatar_url']
+                            if os.path.exists(avatar_path):
+                                st.image(avatar_path, width=150, use_column_width=True)
+                            elif avatar_path.startswith(('http://', 'https://')):
+                                st.image(avatar_path, width=150, use_column_width=True)
+                            else:
+                                st.image("https://i.imgur.com/J5oMdG7.png", width=150, use_column_width=True)
+                        except Exception as e:
+                            st.image("https://i.imgur.com/J5oMdG7.png", width=150, use_column_width=True)
+                    else:
+                        st.image("https://i.imgur.com/J5oMdG7.png", width=150, use_column_width=True)
+                    
+                    # Display brief description
+                    brief_desc = character.get('brief_description', 'No description available')
+                    st.markdown(f"<p style='text-align: center;'>{brief_desc}</p>", unsafe_allow_html=True)
+                    
+                    # Close the character card div
+                    st.markdown("""</div>""", unsafe_allow_html=True)
+                    
+                    # Chat and Edit buttons in a separate div with our CSS class
+                    st.markdown("""<div class='character-card-buttons'>""", unsafe_allow_html=True)
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button(f"💬 Chat", key=f"chat_{character['name']}"):
+                            character_card_clicked(character['name'])
+                    with col2:
+                        if st.button(f"✏️ Edit", key=f"edit_{character['name']}"):
+                            edit_character_button_clicked(character['name'])
+                    st.markdown("""</div>""", unsafe_allow_html=True)
         else:
-            st.info("Please select or create a character to start chatting.")
+            st.info("No characters found. Create a new character using the sidebar.")
         
-        # Chat history display
-        chat_container = st.container()
-        with chat_container:
-            for i, (user_msg, char_msg) in enumerate(st.session_state.chat_history):
-                display_chat_message(user_msg, is_user=True)
-                display_chat_message(char_msg, is_user=False)
-        
-        # Chat input
-        # Check if we have the appropriate API key for the selected model
-        has_required_api_key = False
-        if "qwen" in st.session_state.selected_model.lower() and st.session_state.qwen_api_key:
-            has_required_api_key = True
-        elif "mistral" in st.session_state.selected_model.lower() and st.session_state.mistral_api_key:
-            has_required_api_key = True
-        elif "yi-large" in st.session_state.selected_model.lower() and st.session_state.kimi_api_key:
-            has_required_api_key = True
-        elif "glm" in st.session_state.selected_model.lower() and st.session_state.glm_api_key:
-            has_required_api_key = True
-        elif "dolphin" in st.session_state.selected_model.lower() and st.session_state.dolphin_api_key:
-            has_required_api_key = True
-        elif st.session_state.api_key:
-            has_required_api_key = True
-            
-        if st.session_state.current_character:
+        # Character editing interface if a character is selected for editing
+        if st.session_state.editing_character_name:
+            edit_char = next((char for char in characters if char['name'] == st.session_state.editing_character_name), None)
+            if edit_char:
+                st.header(f"✏️ Edit {edit_char['name']}")
                 
-            if has_required_api_key:
-                user_input = st.text_area(
-                    "Your message:",
-                    height=100,
-                    key="user_input",
-                    placeholder="Type your message here..."
-                )
-            else:
-                if "qwen" in st.session_state.selected_model.lower():
-                    st.warning("Please enter your Qwen API key in the sidebar.")
-                elif "mistral" in st.session_state.selected_model.lower():
-                    st.warning("Please enter your Mistral API key in the sidebar.")
-                elif "yi-large" in st.session_state.selected_model.lower():
-                    st.warning("Please enter your Kimi API key in the sidebar.")
-                elif "glm" in st.session_state.selected_model.lower():
-                    st.warning("Please enter your GLM API key in the sidebar.")
-                elif "dolphin" in st.session_state.selected_model.lower():
-                    st.warning("Please enter your Dolphin API key in the sidebar.")
-                else:
-                    st.warning("Please enter your OpenRouter API key in the sidebar.")
-            
-            col_send, col_clear = st.columns([3, 1])
-            with col_send:
-                if st.button("📤 Send Message", type="primary"):
-                    if user_input.strip():
-                        # Initialize API handler with the appropriate API key based on the selected model
-                        if "qwen" in st.session_state.selected_model.lower() and st.session_state.qwen_api_key:
-                            api_handler = OpenRouterAPI(st.session_state.qwen_api_key)
-                        elif "mistral" in st.session_state.selected_model.lower() and st.session_state.mistral_api_key:
-                            api_handler = OpenRouterAPI(st.session_state.mistral_api_key)
-                        elif "yi-large" in st.session_state.selected_model.lower() and st.session_state.kimi_api_key:
-                            api_handler = OpenRouterAPI(st.session_state.kimi_api_key)
-                        elif "glm" in st.session_state.selected_model.lower() and st.session_state.glm_api_key:
-                            api_handler = OpenRouterAPI(st.session_state.glm_api_key)
-                        elif "dolphin" in st.session_state.selected_model.lower() and st.session_state.dolphin_api_key:
-                            api_handler = OpenRouterAPI(st.session_state.dolphin_api_key)
+                with st.form("edit_character_form"):
+                    # Character fields
+                    brief_description = st.text_input("Brief Description", 
+                                                   value=edit_char.get("brief_description", ""))
+                    char_personality = st.text_area("Personality Traits", height=100,
+                                                  value=edit_char.get("personality", ""))
+                    char_backstory = st.text_area("Backstory", height=100,
+                                                value=edit_char.get("backstory", ""))
+                    
+                    # Avatar options
+                    avatar_option = st.radio("Avatar Option", ["Keep Current", "Default", "URL", "Upload Image"])
+                    
+                    char_avatar = edit_char.get("avatar_url", "")
+                    
+                    if avatar_option == "Default":
+                        # Show default avatars from default_images directory
+                        if os.path.exists("default_images"):
+                            default_avatars = [f for f in os.listdir("default_images") if f.endswith((".jpg", ".jpeg", ".png"))]
+                            if default_avatars:
+                                selected_default = st.selectbox("Choose a default avatar", default_avatars)
+                                char_avatar = os.path.join("default_images", selected_default)
+                            else:
+                                st.warning("No default avatars found")
                         else:
-                            api_handler = OpenRouterAPI(st.session_state.api_key)
+                            st.warning("Default images directory not found")
+                    elif avatar_option == "URL":
+                        char_avatar = st.text_input("Avatar URL", value="")
+                    elif avatar_option == "Upload Image":
+                        st.info("Click below to open your file manager. Only JPEG, JPG, or PNG files are accepted.")
+                        uploaded_file = st.file_uploader("Upload Character Image", type=["jpg", "jpeg", "png"], key="edit_character_avatar", accept_multiple_files=False)
                         
-                        # Create system prompt from character and persona
-                        system_prompt = char_manager.create_system_prompt(
-                            st.session_state.current_character,
-                            st.session_state.current_persona
-                        )
+                        # Add drag and drop area with better instructions
+                        st.markdown("""
+                        <div class="drag-drop-area">
+                            <p>📁 Click above to browse files or drag and drop your image here</p>
+                            <p style="font-size: 0.8em; color: #666;">Supported formats: JPEG, JPG, PNG</p>
+                        </div>
+                        """, unsafe_allow_html=True)
                         
-                        # Prepare messages for API
-                        messages = [{"role": "system", "content": system_prompt}]
-                        
-                        # Add chat history
-                        for user_msg, char_msg in st.session_state.chat_history[-5:]:  # Last 5 exchanges
-                            messages.append({"role": "user", "content": user_msg})
-                            messages.append({"role": "assistant", "content": char_msg})
-                        
-                        # Add current message
-                        messages.append({"role": "user", "content": user_input})
-                        
-                        # Show loading spinner
-                        with st.spinner("Thinking..."):
-                            try:
-                                response_data = api_handler.get_response(
-                                    messages=messages,
-                                    model=st.session_state.selected_model,
-                                    temperature=temperature,
-                                    max_tokens=max_tokens
+                        if uploaded_file is not None:
+                            # Create directory if it doesn't exist
+                            os.makedirs("uploaded_images/characters", exist_ok=True)
+                            
+                            # Save the uploaded file
+                            file_path = os.path.join("uploaded_images/characters", uploaded_file.name)
+                            with open(file_path, "wb") as f:
+                                f.write(uploaded_file.getbuffer())
+                            char_avatar = file_path
+                    
+                    # Memory section
+                    st.subheader("Character Memories")
+                    memories = edit_char.get("memories", [])
+                    
+                    for i, memory in enumerate(memories):
+                        col1, col2 = st.columns([0.8, 0.2])
+                        with col1:
+                            st.markdown(f"<div class='memory-item'>{memory}</div>", unsafe_allow_html=True)
+                        with col2:
+                            if st.button("🗑️", key=f"delete_memory_edit_{i}"):
+                                char_manager.remove_memory_from_character(
+                                    edit_char["name"], i
                                 )
+                                # Refresh the character
+                                st.session_state.editing_character_name = None
+                                st.rerun()
                     
-                                if isinstance(response_data, dict) and "content" in response_data:
-                                    # Add to chat history
-                                    st.session_state.chat_history.append((user_input, response_data["content"]))
-                                    
-                                    # Store token usage data if available
-                                    if "usage" in response_data:
-                                        if "usage" not in st.session_state:
-                                            st.session_state.usage = {
-                                                "prompt_tokens": 0,
-                                                "completion_tokens": 0,
-                                                "total_tokens": 0,
-                                                "estimated_cost": 0.0
-                                            }
-                                        
-                                        # Update token usage stats
-                                        st.session_state.usage["prompt_tokens"] += response_data["usage"].get("prompt_tokens", 0)
-                                        st.session_state.usage["completion_tokens"] += response_data["usage"].get("completion_tokens", 0)
-                                        st.session_state.usage["total_tokens"] += response_data["usage"].get("total_tokens", 0)
-                                        st.session_state.usage["estimated_cost"] = response_data.get("estimated_cost", 0.0)
-                                    
-                                    st.rerun()
-                                else:
-                                    st.error("Failed to get response from API")
-                            except Exception as e:
-                                st.error(f"Error: {str(e)}")
-        else:
-            if not st.session_state.current_character:
-                st.warning("Please select a character first.")
-            if not has_required_api_key:
-                if "qwen" in st.session_state.selected_model.lower():
-                    st.warning("Please enter your Qwen API key in the sidebar.")
-                elif "mistral" in st.session_state.selected_model.lower():
-                    st.warning("Please enter your Mistral API key in the sidebar.")
-                elif "yi-large" in st.session_state.selected_model.lower():
-                    st.warning("Please enter your Kimi API key in the sidebar.")
-                elif "glm" in st.session_state.selected_model.lower():
-                    st.warning("Please enter your GLM API key in the sidebar.")
-                elif "dolphin" in st.session_state.selected_model.lower():
-                    st.warning("Please enter your Dolphin API key in the sidebar.")
-                else:
-                    st.warning("Please enter your OpenRouter API key in the sidebar.")
-    
-    with col2:
-        st.header("📊 Chat Stats")
+                    new_memory = st.text_area("Add new memory", height=100, key="new_memory_edit")
+                    
+                    # Save and Cancel buttons
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.form_submit_button("💾 Save Changes"):
+                            if not char_personality:
+                                st.error("Personality cannot be empty.")
+                            else:
+                                # Update character
+                                updated_data = {
+                                    "brief_description": brief_description,
+                                    "personality": char_personality,
+                                    "backstory": char_backstory,
+                                    "avatar_url": char_avatar
+                                }
+                                
+                                # Add new memory if provided
+                                if "new_memory_edit" in st.session_state and st.session_state.new_memory_edit.strip():
+                                    add_memory_to_character(edit_char["name"], st.session_state.new_memory_edit)
+                                
+                                char_manager.update_character(edit_char["name"], updated_data)
+                                st.session_state.editing_character_name = None
+                                st.success(f"Character '{edit_char['name']}' updated successfully!")
+                                st.rerun()
+                    with col2:
+                        if st.form_submit_button("❌ Cancel"):
+                            st.session_state.editing_character_name = None
+                            st.rerun()
+    else:
+        # Chat interface
+        # Back button to return to character selection
+        if st.button("← Back to Characters"):
+            st.session_state.chat_mode = False
+            st.rerun()
+            
+        col1, col2 = st.columns([2, 1])
         
-        if st.session_state.chat_history:
-            st.metric("Messages Exchanged", len(st.session_state.chat_history) * 2)
+        with col1:
+            st.header("💬 Chat")
             
-            # Word count
-            total_words = sum(len(msg.split()) for user_msg, char_msg in st.session_state.chat_history for msg in [user_msg, char_msg])
-            st.metric("Total Words", total_words)
+            # Display current character info
+            if st.session_state.current_character:
+                display_character_info(st.session_state.current_character)
+            else:
+                st.info("Please select or create a character to start chatting.")
             
-            # Token Usage Stats
-            if "usage" in st.session_state:
-                st.subheader("Token Usage")
-                col1, col2 = st.columns(2)
+            # Chat history display
+            chat_container = st.container()
+            with chat_container:
+                for i, (user_msg, char_msg) in enumerate(st.session_state.chat_history):
+                    display_chat_message(user_msg, is_user=True)
+                    display_chat_message(char_msg, is_user=False)
+            
+            # Chat input
+            # Check if we have the appropriate API key for the selected model
+            has_required_api_key = False
+            if "qwen" in st.session_state.selected_model.lower() and st.session_state.qwen_api_key:
+                has_required_api_key = True
+            elif "mistral" in st.session_state.selected_model.lower() and st.session_state.mistral_api_key:
+                has_required_api_key = True
+            elif "yi-large" in st.session_state.selected_model.lower() and st.session_state.kimi_api_key:
+                has_required_api_key = True
+            elif "glm" in st.session_state.selected_model.lower() and st.session_state.glm_api_key:
+                has_required_api_key = True
+            elif "dolphin" in st.session_state.selected_model.lower() and st.session_state.dolphin_api_key:
+                has_required_api_key = True
+            elif st.session_state.api_key:
+                has_required_api_key = True
                 
-                with col1:
-                    st.text(f"Prompt Tokens: {st.session_state.usage['prompt_tokens']:,}")
-                    st.text(f"Completion Tokens: {st.session_state.usage['completion_tokens']:,}")
-                
-                with col2:
-                    st.text(f"Total Tokens: {st.session_state.usage['total_tokens']:,}")
-                    # Display estimated cost with formatting
-                    cost = st.session_state.usage['estimated_cost']
-                    st.text(f"Est. Cost: ${cost:.6f}")
-                
-                # Add a progress bar for visual representation
-                if cost > 0:
-                    # Use a logarithmic scale for better visualization
-                    # $0.01 is a reasonable threshold for showing progress
-                    progress = min(cost / 0.01, 1.0)
-                    st.progress(progress)
+            if st.session_state.current_character:
                     
-                    if progress >= 1.0:
-                        st.warning("⚠️ Cost threshold reached")
-                        
-                # Add token usage display in the sidebar as well
-                st.sidebar.subheader("Token Usage")
-                st.sidebar.text(f"Total Tokens: {st.session_state.usage['total_tokens']:,}")
-                st.sidebar.text(f"Est. Cost: ${cost:.6f}")
+                if has_required_api_key:
+                    user_input = st.text_area(
+                        "Your message:",
+                        height=100,
+                        key="user_input",
+                        placeholder="Type your message here..."
+                    )
+                else:
+                    if "qwen" in st.session_state.selected_model.lower():
+                        st.warning("Please enter your Qwen API key in the sidebar.")
+                    elif "mistral" in st.session_state.selected_model.lower():
+                        st.warning("Please enter your Mistral API key in the sidebar.")
+                    elif "yi-large" in st.session_state.selected_model.lower():
+                        st.warning("Please enter your Kimi API key in the sidebar.")
+                    elif "glm" in st.session_state.selected_model.lower():
+                        st.warning("Please enter your GLM API key in the sidebar.")
+                    elif "dolphin" in st.session_state.selected_model.lower():
+                        st.warning("Please enter your Dolphin API key in the sidebar.")
+                    else:
+                        st.warning("Please enter your OpenRouter API key in the sidebar.")
                 
-                # Add a progress bar for visual representation in sidebar
-                if cost > 0:
-                    # Use a logarithmic scale for better visualization
-                    progress = min(cost / 0.01, 1.0)
-                    st.sidebar.progress(progress)
-        else:
-            st.info("No chat history yet.")
+                col_send, col_clear = st.columns([3, 1])
+                with col_send:
+                    if st.button("📤 Send Message", type="primary"):
+                        if user_input.strip():
+                            # Initialize API handler with the appropriate API key based on the selected model
+                            if "qwen" in st.session_state.selected_model.lower() and st.session_state.qwen_api_key:
+                                api_handler = OpenRouterAPI(st.session_state.qwen_api_key)
+                            elif "mistral" in st.session_state.selected_model.lower() and st.session_state.mistral_api_key:
+                                api_handler = OpenRouterAPI(st.session_state.mistral_api_key)
+                            elif "yi-large" in st.session_state.selected_model.lower() and st.session_state.kimi_api_key:
+                                api_handler = OpenRouterAPI(st.session_state.kimi_api_key)
+                            elif "glm" in st.session_state.selected_model.lower() and st.session_state.glm_api_key:
+                                api_handler = OpenRouterAPI(st.session_state.glm_api_key)
+                            elif "dolphin" in st.session_state.selected_model.lower() and st.session_state.dolphin_api_key:
+                                api_handler = OpenRouterAPI(st.session_state.dolphin_api_key)
+                            else:
+                                api_handler = OpenRouterAPI(st.session_state.api_key)
+                            
+                            # Create system prompt from character and persona
+                            system_prompt = char_manager.create_system_prompt(
+                                st.session_state.current_character,
+                                st.session_state.current_persona
+                            )
+                            
+                            # Prepare messages for API
+                            messages = [{"role": "system", "content": system_prompt}]
+                            
+                            # Add chat history
+                            for user_msg, char_msg in st.session_state.chat_history[-5:]:  # Last 5 exchanges
+                                messages.append({"role": "user", "content": user_msg})
+                                messages.append({"role": "assistant", "content": char_msg})
+                            
+                            # Add current message
+                            messages.append({"role": "user", "content": user_input})
+                            
+                            # Show loading spinner
+                            with st.spinner("Thinking..."):
+                                try:
+                                    response_data = api_handler.get_response(
+                                        messages=messages,
+                                        model=st.session_state.selected_model,
+                                        temperature=temperature,
+                                        max_tokens=max_tokens
+                                    )
+                        
+                                    if isinstance(response_data, dict) and "content" in response_data:
+                                        # Add to chat history
+                                        st.session_state.chat_history.append((user_input, response_data["content"]))
+                                        
+                                        # Store token usage data if available
+                                        if "usage" in response_data:
+                                            if "usage" not in st.session_state:
+                                                st.session_state.usage = {
+                                                    "prompt_tokens": 0,
+                                                    "completion_tokens": 0,
+                                                    "total_tokens": 0,
+                                                    "estimated_cost": 0.0
+                                                }
+                                            
+                                            # Update token usage stats
+                                            st.session_state.usage["prompt_tokens"] += response_data["usage"].get("prompt_tokens", 0)
+                                            st.session_state.usage["completion_tokens"] += response_data["usage"].get("completion_tokens", 0)
+                                            st.session_state.usage["total_tokens"] += response_data["usage"].get("total_tokens", 0)
+                                            st.session_state.usage["estimated_cost"] = response_data.get("estimated_cost", 0.0)
+                                        
+                                        st.rerun()
+                                    else:
+                                        st.error("Failed to get response from API")
+                                except Exception as e:
+                                    st.error(f"Error: {str(e)}")
+            else:
+                if not st.session_state.current_character:
+                    st.warning("Please select a character first.")
+                if not has_required_api_key:
+                    if "qwen" in st.session_state.selected_model.lower():
+                        st.warning("Please enter your Qwen API key in the sidebar.")
+                    elif "mistral" in st.session_state.selected_model.lower():
+                        st.warning("Please enter your Mistral API key in the sidebar.")
+                    elif "yi-large" in st.session_state.selected_model.lower():
+                        st.warning("Please enter your Kimi API key in the sidebar.")
+                    elif "glm" in st.session_state.selected_model.lower():
+                        st.warning("Please enter your GLM API key in the sidebar.")
+                    elif "dolphin" in st.session_state.selected_model.lower():
+                        st.warning("Please enter your Dolphin API key in the sidebar.")
+                    else:
+                        st.warning("Please enter your OpenRouter API key in the sidebar.")
+        
+        with col2:
+            st.header("📊 Chat Stats")
+            
+            if st.session_state.chat_history:
+                st.metric("Messages Exchanged", len(st.session_state.chat_history) * 2)
+                
+                # Word count
+                total_words = sum(len(msg.split()) for user_msg, char_msg in st.session_state.chat_history for msg in [user_msg, char_msg])
+                st.metric("Total Words", total_words)
+                
+                # Token Usage Stats
+                if "usage" in st.session_state:
+                    st.subheader("Token Usage")
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.text(f"Prompt Tokens: {st.session_state.usage['prompt_tokens']:,}")
+                        st.text(f"Completion Tokens: {st.session_state.usage['completion_tokens']:,}")
+                    
+                    with col2:
+                        st.text(f"Total Tokens: {st.session_state.usage['total_tokens']:,}")
+                        # Display estimated cost with formatting
+                        cost = st.session_state.usage['estimated_cost']
+                        st.text(f"Est. Cost: ${cost:.6f}")
+                    
+                    # Add a progress bar for visual representation
+                    if cost > 0:
+                        # Use a logarithmic scale for better visualization
+                        # $0.01 is a reasonable threshold for showing progress
+                        progress = min(cost / 0.01, 1.0)
+                        st.progress(progress)
+                        
+                        if progress >= 1.0:
+                            st.warning("⚠️ Cost threshold reached")
+                            
+                    # Add token usage display in the sidebar as well
+                    st.sidebar.subheader("Token Usage")
+                    st.sidebar.text(f"Total Tokens: {st.session_state.usage['total_tokens']:,}")
+                    st.sidebar.text(f"Est. Cost: ${cost:.6f}")
+                    
+                    # Add a progress bar for visual representation in sidebar
+                    if cost > 0:
+                        # Use a logarithmic scale for better visualization
+                        progress = min(cost / 0.01, 1.0)
+                        st.sidebar.progress(progress)
+            else:
+                st.info("No chat history yet.")
         
         # Character list
         st.subheader("Available Characters")
