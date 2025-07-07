@@ -11,6 +11,8 @@ from api_handler import OpenRouterAPI
 # Load environment variables from .env file
 dotenv.load_dotenv()
 
+# Session state will be initialized in the initialize_session_state function
+
 # Page configuration
 st.set_page_config(
     page_title="AI Character Chat",
@@ -241,47 +243,22 @@ function handleCardClick(characterName) {
 
 def initialize_session_state():
     """Initialize session state variables"""
-    if 'chat_history' not in st.session_state:
-        st.session_state.chat_history = []
-    if 'current_character' not in st.session_state:
-        st.session_state.current_character = None
-    if 'current_persona' not in st.session_state:
-        st.session_state.current_persona = None
-    if 'editing_character' not in st.session_state:
-        st.session_state.editing_character = False
-    if 'editing_persona' not in st.session_state:
-        st.session_state.editing_persona = False
-    if 'api_key' not in st.session_state:
-        # Try to load API key from environment variables
-        api_key_from_env = os.environ.get("OPENROUTER_API_KEY", "")
-        st.session_state.api_key = api_key_from_env
-    if 'qwen_api_key' not in st.session_state:
-        # Try to load Qwen API key from environment variables
-        qwen_api_key_from_env = os.environ.get("QWEN_API_KEY", "")
-        st.session_state.qwen_api_key = qwen_api_key_from_env
-    if 'mistral_api_key' not in st.session_state:
-        # Try to load Mistral API key from environment variables
-        mistral_api_key_from_env = os.environ.get("MISTRAL_API_KEY", "")
-        st.session_state.mistral_api_key = mistral_api_key_from_env
-    if 'kimi_api_key' not in st.session_state:
-        # Try to load Kimi API key from environment variables
-        kimi_api_key_from_env = os.environ.get("KIMI_API_KEY", "")
-        st.session_state.kimi_api_key = kimi_api_key_from_env
-    if 'glm_api_key' not in st.session_state:
-        # Try to load GLM API key from environment variables
-        glm_api_key_from_env = os.environ.get("GLM_API_KEY", "")
-        st.session_state.glm_api_key = glm_api_key_from_env
-    if 'dolphin_api_key' not in st.session_state:
-        # Try to load Dolphin API key from environment variables
-        dolphin_api_key_from_env = os.environ.get("DOLPHIN_API_KEY", "")
-        st.session_state.dolphin_api_key = dolphin_api_key_from_env
-    if 'selected_model' not in st.session_state:
-        st.session_state.selected_model = "deepseek/deepseek-chat"
-    # New session state variables for character card UI
-    if 'chat_mode' not in st.session_state:
-        st.session_state.chat_mode = False
-    if 'editing_character_name' not in st.session_state:
-        st.session_state.editing_character_name = None
+    # Use setdefault to initialize session state variables
+    # This is the recommended way to initialize session state variables in Streamlit
+    st.session_state.setdefault('chat_mode', False)
+    st.session_state.setdefault('editing_character_name', None)
+    st.session_state.setdefault('brief_description', "")
+    st.session_state.setdefault('chat_history', [])
+    st.session_state.setdefault('current_character', None)
+    st.session_state.setdefault('current_persona', None)
+    st.session_state.setdefault('editing_character', False)
+    st.session_state.setdefault('editing_persona', False)
+    st.session_state.setdefault('api_key', "")
+    st.session_state.setdefault('qwen_api_key', "")
+    st.session_state.setdefault('mistral_api_key', "")
+    st.session_state.setdefault('kimi_api_key', "")
+    st.session_state.setdefault('glm_api_key', "")
+    st.session_state.setdefault('dolphin_api_key', "")
 
 def display_character_info(character):
     """Display character information in a nice format"""
@@ -446,6 +423,16 @@ if 'editing_character' not in st.session_state:
     st.session_state.editing_character = False
 if 'editing_persona' not in st.session_state:
     st.session_state.editing_persona = False
+if 'chat_mode' not in st.session_state:
+    st.session_state.chat_mode = False
+if 'editing_character_name' not in st.session_state:
+    st.session_state.editing_character_name = None
+if 'brief_description' not in st.session_state:
+    st.session_state.brief_description = ""
+if 'show_image_upload' not in st.session_state:
+    st.session_state.show_image_upload = False
+if 'new_character_info' not in st.session_state:
+    st.session_state.new_character_info = None
 if 'api_key' not in st.session_state:
     # Try to load API key from environment variables
     api_key_from_env = os.environ.get("OPENROUTER_API_KEY", "")
@@ -475,26 +462,28 @@ if 'selected_model' not in st.session_state:
 
 def main():
     """Main application function"""
-    # Call the initialize function for any additional setup
-    initialize_session_state()
+    # Directly initialize session state variables
+    if 'chat_mode' not in st.session_state:
+        st.session_state['chat_mode'] = False
+    
+    # Add custom CSS to make file uploader more visible
+    st.markdown("""
+    <style>
+    /* Make file uploader more prominent */
+    .stFileUploader {margin-bottom: 10px; padding: 10px; border: 2px dashed #4e8df5; border-radius: 5px;}
+    .stFileUploader:hover {border-color: #2e6af5; background-color: rgba(78, 141, 245, 0.05);}
+    .stFileUploader button {background-color: #4e8df5 !important; color: white !important; font-weight: bold !important;}
+    
+    /* Style the drag-drop area */
+    .drag-drop-area {padding: 15px; margin-top: 5px; border: 1px dashed #ccc; border-radius: 5px; text-align: center;}
+    </style>
+    """, unsafe_allow_html=True)
     
     # Initialize managers
     char_manager = CharacterManager()
     
-    # Initialize chat mode if not present
-    if 'chat_mode' not in st.session_state:
-        st.session_state.chat_mode = False
-    
-    # Initialize selected character for editing
-    if 'editing_character_name' not in st.session_state:
-        st.session_state.editing_character_name = None
-    
-    # Initialize brief description field for characters
-    if 'brief_description' not in st.session_state:
-        st.session_state.brief_description = ""
-    
     # Main title only shown in home mode
-    if not st.session_state.chat_mode:
+    if not st.session_state['chat_mode']:
         st.title("🤖 AI Character Chat Interface")
     
     # Sidebar for configuration
@@ -917,23 +906,33 @@ def main():
                                                          value=st.session_state.current_persona.get("additional_info", "") if persona_action == "Edit Current Persona" else "")
                     
                     # Avatar options
-                    avatar_option = st.radio("Avatar Option", ["Default", "URL", "Upload Image"])
+                    avatar_option = st.radio("Avatar Option", ["Default", "Upload Image"])
                     
                     if avatar_option == "Default":
-                        avatar_url = "https://i.imgur.com/J5oMdG7.png"  # Default avatar
-                    elif avatar_option == "URL":
-                        avatar_url = st.text_input("Avatar URL", 
-                                                 value=st.session_state.current_persona.get("avatar_url", "") if persona_action == "Edit Current Persona" else "")
+                        # Use a local default image instead of imgur link
+                        default_img = os.path.join("default_images", "default_avatar.png")
+                        if os.path.exists(default_img):
+                            avatar_url = default_img
+                        else:
+                            # Create an empty default avatar if it doesn't exist
+                            os.makedirs("default_images", exist_ok=True)
+                            avatar_url = ""
                     else:  # Upload Image
                         st.info("Click below to open your file manager. Only JPEG, JPG, or PNG files are accepted.")
+                        # Place the file uploader before the drag-drop area
                         uploaded_file = st.file_uploader("Upload Avatar Image", type=["jpg", "jpeg", "png"], key="persona_avatar", accept_multiple_files=False)
                         avatar_url = st.session_state.current_persona.get("avatar_url", "") if persona_action == "Edit Current Persona" else ""
+                        
+                        # Show current image if it exists
+                        if avatar_url and os.path.exists(avatar_url):
+                            st.image(avatar_url, width=150, caption="Current image")
                         
                         # Add drag and drop area with better instructions
                         st.markdown("""
                         <div class="drag-drop-area">
-                            <p>📁 Click above to browse files or drag and drop your image here</p>
+                            <p>📁 <b>Click the blue 'Browse files' button above</b> or drag and drop your image here</p>
                             <p style="font-size: 0.8em; color: #666;">Supported formats: JPEG, JPG, PNG</p>
+                            <p style="font-size: 0.9em; color: #4e8df5;"><b>⬆️ Look for the blue button above this box!</b></p>
                         </div>
                         """, unsafe_allow_html=True)
                         
@@ -946,6 +945,10 @@ def main():
                             with open(file_path, "wb") as f:
                                 f.write(uploaded_file.getbuffer())
                             avatar_url = file_path
+                            
+                            # Show the uploaded image
+                            st.success("Image uploaded successfully!")
+                            st.image(file_path, width=150, caption="Uploaded image")
                     
                     submit_button = st.form_submit_button("Save Persona")
                     
@@ -981,31 +984,25 @@ def main():
         
         st.divider()
         
-        # Character management - Create option only in sidebar
-        st.header("👥 Create Character")
+        # Character management - Simplified options
+        st.header("👥 Character Management")
 
         # Load existing characters (but don't show selection in sidebar)
         characters = char_manager.load_characters()
         
-        # Character management options
-        with st.expander("Manage Characters"):
-            character_action = st.radio("Action", ["Create New Character", "Edit Current Character", "Delete Current Character"])
+        # Character management options - Create, Edit, and Delete
+        character_action = st.radio("Action", ["Create a Character", "Edit a Character", "Delete a Character"])
             
-            if character_action == "Create New Character" or (character_action == "Edit Current Character" and st.session_state.current_character):
+        if character_action == "Create a Character":
                 with st.form("character_form"):
-                    if character_action == "Create New Character":
-                        char_name = st.text_input("Character Name")
-                    else:
-                        char_name = st.text_input("Character Name", value=st.session_state.current_character.get("name"), disabled=True)
-                        st.info("Name cannot be changed once created")
+                    # Always in create mode
+                    char_name = st.text_input("Character Name")
                     
-                    char_personality = st.text_area("Personality Traits", height=100,
-                                                  value=st.session_state.current_character.get("personality", "") if character_action == "Edit Current Character" else "")
-                    char_backstory = st.text_area("Backstory", height=100,
-                                                value=st.session_state.current_character.get("backstory", "") if character_action == "Edit Current Character" else "")
+                    char_personality = st.text_area("Personality Traits", height=100)
+                    char_backstory = st.text_area("Backstory", height=100)
                     
                     # Avatar options
-                    avatar_option = st.radio("Avatar Option", ["Default", "URL", "Upload Image"])
+                    avatar_option = st.radio("Avatar Option", ["Default", "Upload Image"])
                     
                     if avatar_option == "Default":
                         # Show default avatars from default_images directory
@@ -1020,19 +1017,22 @@ def main():
                         else:
                             st.warning("Default images directory not found")
                             char_avatar = ""
-                    elif avatar_option == "URL":
-                        char_avatar = st.text_input("Avatar URL",
-                                                  value=st.session_state.current_character.get("avatar_url", "") if character_action == "Edit Current Character" else "")
                     else:  # Upload Image
                         st.info("Click below to open your file manager. Only JPEG, JPG, or PNG files are accepted.")
+                        # Place the file uploader before the drag-drop area
                         uploaded_file = st.file_uploader("Upload Character Image", type=["jpg", "jpeg", "png"], key="character_avatar", accept_multiple_files=False)
                         char_avatar = st.session_state.current_character.get("avatar_url", "") if character_action == "Edit Current Character" else ""
+                        
+                        # Show current image if it exists
+                        if char_avatar and os.path.exists(char_avatar):
+                            st.image(char_avatar, width=150, caption="Current image")
                         
                         # Add drag and drop area with better instructions
                         st.markdown("""
                         <div class="drag-drop-area">
-                            <p>📁 Click above to browse files or drag and drop your image here</p>
+                            <p>📁 <b>Click the blue 'Browse files' button above</b> or drag and drop your image here</p>
                             <p style="font-size: 0.8em; color: #666;">Supported formats: JPEG, JPG, PNG</p>
+                            <p style="font-size: 0.9em; color: #4e8df5;"><b>⬆️ Look for the blue button above this box!</b></p>
                         </div>
                         """, unsafe_allow_html=True)
                         
@@ -1045,6 +1045,10 @@ def main():
                             with open(file_path, "wb") as f:
                                 f.write(uploaded_file.getbuffer())
                             char_avatar = file_path
+                            
+                            # Show the uploaded image
+                            st.success("Image uploaded successfully!")
+                            st.image(file_path, width=150, caption="Uploaded image")
                     
                     # Memory section (only for editing)
                     if character_action == "Edit Current Character" and st.session_state.current_character:
@@ -1068,53 +1072,161 @@ def main():
                         
                         new_memory = st.text_area("Add new memory", height=100, key="new_memory_form")
                     
-                    if st.form_submit_button("Save Character"):
-                        if character_action == "Create New Character":
+                    submit_button_text = "Continue"
+                    if st.form_submit_button(submit_button_text):
                             if not char_name or not char_personality:
                                 st.error("Please fill in at least name and personality.")
                             else:
-                                new_character = {
+                                # Store character info in session state for the next step
+                                st.session_state.new_character_info = {
                                     "name": char_name,
                                     "personality": char_personality,
                                     "backstory": char_backstory,
-                                    "avatar_url": char_avatar,
+                                    "avatar_url": "",  # We'll set this in the next step
                                     "memories": [],
                                     "created_at": datetime.now().isoformat()
                                 }
-                                char_manager.save_character(new_character)
-                                st.session_state.current_character = new_character
-                                st.success(f"Character '{char_name}' created successfully!")
-                                st.rerun()
-                        else:  # Edit Current Character
-                            if not char_personality:
-                                st.error("Personality cannot be empty.")
-                            else:
-                                # Update character
-                                updated_data = {
-                                    "personality": char_personality,
-                                    "backstory": char_backstory,
-                                    "avatar_url": char_avatar
-                                }
-                                
-                                # Add new memory if provided
-                                if "new_memory_form" in st.session_state and st.session_state.new_memory_form.strip():
-                                    add_memory_to_character(st.session_state.current_character["name"], st.session_state.new_memory_form)
-                                
-                                char_manager.update_character(char_name, updated_data)
-                                st.session_state.current_character = char_manager.get_character(char_name)
-                                st.success(f"Character '{char_name}' updated successfully!")
+                                # Set a flag to show the image upload interface
+                                st.session_state.show_image_upload = True
                                 st.rerun()
             
-            elif character_action == "Delete Current Character" and st.session_state.current_character:
-                st.warning(f"Are you sure you want to delete the character '{st.session_state.current_character.get('name')}'?")
-                if st.button("Confirm Delete"):
-                    if char_manager.delete_character(st.session_state.current_character.get("name")):
-                        st.session_state.current_character = None
-                        st.session_state.chat_history = []
-                        st.success("Character deleted successfully!")
-                        st.rerun()
-                    else:
-                        st.error("Failed to delete character")
+        elif character_action == "Edit a Character":
+            # Get list of character names
+            character_names = [char['name'] for char in characters]
+            
+            if not character_names:
+                st.info("No characters available to edit.")
+            else:
+                # Let user select which character to edit
+                char_to_edit = st.selectbox("Select character to edit:", character_names)
+                
+                # Get the character data
+                character_to_edit = char_manager.get_character(char_to_edit)
+                
+                if character_to_edit:
+                    with st.form("edit_character_form"):
+                        st.subheader(f"Editing {char_to_edit}")
+                        
+                        # Character fields
+                        char_personality = st.text_area("Personality Traits", value=character_to_edit.get("personality", ""), height=100)
+                        char_backstory = st.text_area("Backstory", value=character_to_edit.get("backstory", ""), height=100)
+                        
+                        # Avatar options
+                        avatar_option = st.radio("Avatar Option", ["Keep Current", "Default", "Upload Image"])
+                        
+                        char_avatar = character_to_edit.get("avatar_url", "")
+                        
+                        if avatar_option == "Keep Current":
+                            # Show current image if it exists
+                            if char_avatar and os.path.exists(char_avatar):
+                                st.image(char_avatar, width=150, caption="Current image")
+                        elif avatar_option == "Default":
+                            # Show default avatars from default_images directory
+                            if os.path.exists("default_images"):
+                                default_avatars = [f for f in os.listdir("default_images") if f.endswith((".jpg", ".jpeg", ".png"))]
+                                if default_avatars:
+                                    selected_default = st.selectbox("Choose a default avatar", default_avatars)
+                                    char_avatar = os.path.join("default_images", selected_default)
+                                else:
+                                    st.warning("No default avatars found")
+                            else:
+                                st.warning("Default images directory not found")
+                        else:  # Upload Image
+                            st.info("Click below to open your file manager. Only JPEG, JPG, or PNG files are accepted.")
+                            # Place the file uploader before the drag-drop area
+                            uploaded_file = st.file_uploader("Upload Character Image", type=["jpg", "jpeg", "png"], key="edit_character_avatar", accept_multiple_files=False)
+                            
+                            # Show current image if it exists
+                            if char_avatar and os.path.exists(char_avatar):
+                                st.image(char_avatar, width=150, caption="Current image")
+                            
+                            # Add drag and drop area with better instructions
+                            st.markdown("""
+                            <div class="drag-drop-area">
+                                <p>📁 <b>Click the blue 'Browse files' button above</b> or drag and drop your image here</p>
+                                <p style="font-size: 0.8em; color: #666;">Supported formats: JPEG, JPG, PNG</p>
+                                <p style="font-size: 0.9em; color: #4e8df5;"><b>⬆️ Look for the blue button above this box!</b></p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                                
+                            if uploaded_file is not None:
+                                # Create directory if it doesn't exist
+                                os.makedirs("uploaded_images/characters", exist_ok=True)
+                                
+                                # Save the uploaded file
+                                file_path = os.path.join("uploaded_images/characters", uploaded_file.name)
+                                with open(file_path, "wb") as f:
+                                    f.write(uploaded_file.getbuffer())
+                                char_avatar = file_path
+                                
+                                # Show the uploaded image
+                                st.success("Image uploaded successfully!")
+                                st.image(file_path, width=150, caption="Uploaded image")
+                            
+                            # Memory section
+                            st.subheader("Character Memories")
+                            memories = character_to_edit.get("memories", [])
+                            
+                            for i, memory in enumerate(memories):
+                                col1, col2 = st.columns([0.8, 0.2])
+                                with col1:
+                                    st.markdown(f"<div class='memory-item'>{memory}</div>", unsafe_allow_html=True)
+                                with col2:
+                                    if st.button("🗑️", key=f"delete_memory_edit_{i}"):
+                                        char_manager.remove_memory_from_character(char_to_edit, i)
+                                        # Refresh the character data
+                                        character_to_edit = char_manager.get_character(char_to_edit)
+                                        st.rerun()
+                            
+                            new_memory = st.text_area("Add new memory", height=100, key="edit_new_memory_form")
+                            
+                            if st.form_submit_button("Save Changes"):
+                                if not char_personality:
+                                    st.error("Personality cannot be empty.")
+                                else:
+                                    # Update character
+                                    updated_data = {
+                                        "personality": char_personality,
+                                        "backstory": char_backstory,
+                                        "avatar_url": char_avatar
+                                    }
+                                    
+                                    # Add new memory if provided
+                                    if "edit_new_memory_form" in st.session_state and st.session_state.edit_new_memory_form.strip():
+                                        char_manager.add_memory_to_character(char_to_edit, st.session_state.edit_new_memory_form)
+                                    
+                                    char_manager.update_character(char_to_edit, updated_data)
+                                    
+                                    # If this is the current character, update it in session state
+                                    if  st.session_state.current_character and st.session_state.current_character.get("name") == char_to_edit:
+                                        st.session_state.current_character = char_manager.get_character(char_to_edit)
+                                    
+                                        st.success(f"Character '{char_to_edit}' updated successfully!")
+                                        st.rerun()
+                                    else:
+                                        st.error(f"Could not find character '{char_to_edit}'")
+                
+        elif character_action == "Delete a Character":
+                        # Get list of character names
+                        character_names = [char['name'] for char in characters]
+                
+                        if not character_names:
+                            st.info("No characters available to delete.")
+                        else:
+                            # Let user select which character to delete
+                            char_to_delete = st.selectbox("Select character to delete:", character_names)
+                            
+                            st.warning(f"Are you sure you want to delete the character '{char_to_delete}'?")
+                            if st.button("Confirm Delete"):
+                                if char_manager.delete_character(char_to_delete):
+                                    # If we're deleting the current character, reset it
+                                    if st.session_state.current_character and st.session_state.current_character.get('name') == char_to_delete:
+                                        st.session_state.current_character = None
+                                        st.session_state.chat_history = []
+                                    st.success("Character deleted successfully!")
+                                    st.rerun()
+                                else:
+                                    st.error("Failed to delete character")
         
         # Chat controls
         st.divider()
@@ -1127,8 +1239,70 @@ def main():
                 char_manager.save_chat_history(st.session_state.chat_history, st.session_state.current_character)
                 st.success("Chat history saved!")
     
-    # Main content area - either character cards or chat interface
-    if not st.session_state.chat_mode:
+    # Main content area - either character cards, image upload interface, or chat interface
+    if st.session_state.show_image_upload and st.session_state.new_character_info:
+        # Display the image upload interface
+        st.header(f"Upload Character Image for {st.session_state.new_character_info['name']}")
+        
+        # Avatar options
+        avatar_option = st.radio("Avatar Option", ["Default", "Upload Image"])
+        
+        char_avatar = ""
+        
+        if avatar_option == "Default":
+            # Show default avatars from default_images directory
+            default_avatars = [os.path.join("default_images", f) for f in os.listdir("default_images") if f.endswith(('.png', '.jpg', '.jpeg'))]
+            st.image(default_avatars, width=100, caption=["Default Avatar 1", "Default Avatar 2", "Default Avatar 3"])
+        elif avatar_option == "Upload Image" and st.session_state.new_character_info:
+            uploaded_file = st.file_uploader(
+                "Upload Character Image",
+                type=["jpg", "jpeg", "png"],
+                key="character_avatar_final",
+                accept_multiple_files=False
+            )
+
+        st.markdown("""
+        <div class="drag-drop-area">
+            <p>📁 <b>Click the blue 'Browse files' button above</b> or drag and drop your image here</p>
+            <p style="font-size: 0.8em; color: #666;">Supported formats: JPEG, JPG, PNG</p>
+            <p style="font-size: 0.9em; color: #4e8df5;"><b>⬆️ Look for the blue button above this box!</b></p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if uploaded_file:
+            os.makedirs("uploaded_images/characters", exist_ok=True)
+            ext = uploaded_file.name.split('.')[-1]
+            file_name = f"{st.session_state.new_character_info['name'].lower()}.{ext}"
+            file_path = os.path.join("uploaded_images/characters", file_name)
+            with open(file_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            st.success("Image uploaded successfully!")
+            st.image(file_path, width=150, caption="Uploaded image")
+            st.session_state.temp_avatar_path = file_path
+        
+        # Save button
+        if st.button("Save Character"):
+            if not char_avatar:
+                st.warning("Please select or upload an image for your character.")
+            else:
+                # Update the character info with the avatar URL
+                st.session_state.new_character_info["avatar_url"] = char_avatar
+                
+                # Save the character
+                char_manager = CharacterManager()
+                char_manager.save_character(st.session_state.new_character_info)
+                
+                # Set as current character
+                st.session_state.current_character = st.session_state.new_character_info
+                
+                # Reset the flags
+                st.session_state.show_image_upload = False
+                st.session_state.new_character_info = None
+                
+                st.success(f"Character '{st.session_state.current_character['name']}' created successfully!")
+                st.rerun()
+    
+    elif not st.session_state.chat_mode:
         # Display character cards in a grid
         st.header("👥 Your Characters")
         
@@ -1164,7 +1338,10 @@ def main():
             cols = st.columns(1 if mobile_view else 3)  # 1 column for mobile, 3 for desktop
             
             for i, character in enumerate(characters):
-                with cols[i % 3]:
+                # In mobile view, always use the first column (index 0)
+                # In desktop view, distribute across 3 columns using modulo
+                col_index = 0 if mobile_view else (i % 3)
+                with cols[col_index]:
                     # Create a card-like container with border and padding using our CSS class
                     st.markdown(f"""
                     <div class='character-card' onclick='handleCardClick("{character['name']}");'>
@@ -1177,14 +1354,27 @@ def main():
                             avatar_path = character['avatar_url']
                             if os.path.exists(avatar_path):
                                 st.image(avatar_path, width=150, use_column_width=True)
-                            elif avatar_path.startswith(('http://', 'https://')):
-                                st.image(avatar_path, width=150, use_column_width=True)
                             else:
-                                st.image("https://i.imgur.com/J5oMdG7.png", width=150, use_column_width=True)
+                                # Use a local default image instead of imgur link
+                                default_img = os.path.join("default_images", "default_avatar.png")
+                                if os.path.exists(default_img):
+                                    st.image(default_img, width=150, use_column_width=True)
+                                else:
+                                    st.write("(No avatar available)")
                         except Exception as e:
-                            st.image("https://i.imgur.com/J5oMdG7.png", width=150, use_column_width=True)
+                            # Use a local default image instead of imgur link
+                            default_img = os.path.join("default_images", "default_avatar.png")
+                            if os.path.exists(default_img):
+                                st.image(default_img, width=150, use_column_width=True)
+                            else:
+                                st.write("(No avatar available)")
                     else:
-                        st.image("https://i.imgur.com/J5oMdG7.png", width=150, use_column_width=True)
+                        # Use a local default image instead of imgur link
+                        default_img = os.path.join("default_images", "default_avatar.png")
+                        if os.path.exists(default_img):
+                            st.image(default_img, width=150, use_column_width=True)
+                        else:
+                            st.write("(No avatar available)")
                     
                     # Display brief description
                     brief_desc = character.get('brief_description', 'No description available')
@@ -1222,7 +1412,7 @@ def main():
                                                 value=edit_char.get("backstory", ""))
                     
                     # Avatar options
-                    avatar_option = st.radio("Avatar Option", ["Keep Current", "Default", "URL", "Upload Image"])
+                    avatar_option = st.radio("Avatar Option", ["Keep Current", "Default", "Upload Image"])
                     
                     char_avatar = edit_char.get("avatar_url", "")
                     
@@ -1237,8 +1427,6 @@ def main():
                                 st.warning("No default avatars found")
                         else:
                             st.warning("Default images directory not found")
-                    elif avatar_option == "URL":
-                        char_avatar = st.text_input("Avatar URL", value="")
                     elif avatar_option == "Upload Image":
                         st.info("Click below to open your file manager. Only JPEG, JPG, or PNG files are accepted.")
                         uploaded_file = st.file_uploader("Upload Character Image", type=["jpg", "jpeg", "png"], key="edit_character_avatar", accept_multiple_files=False)

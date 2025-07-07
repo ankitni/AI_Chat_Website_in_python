@@ -32,28 +32,22 @@ class CharacterManager:
     
     def _create_default_characters(self):
         """Create some default characters as examples"""
-        # Save default images to local directory
+        # Check if default images exist, if not create placeholder message
+        # Define the correct filenames with proper case and extensions
         default_images = {
-            "lily": "https://i.imgur.com/7XL4gA6.jpg",
-            "zero": "https://i.imgur.com/JXwLrzI.jpg",
-            "kei": "https://i.imgur.com/QFzIBwl.jpg"
+            "lily": "lily.jpg",
+            "zero": "zero.jpg",
+            "kei": "Kei.jpg",
+            "default_avatar": "default_avatar.png"
         }
         
-        # Download default images
-        import requests
-        for name, url in default_images.items():
-            try:
-                img_path = os.path.join(self.default_images_dir, f"{name}.jpg")
-                if not os.path.exists(img_path):
-                    response = requests.get(url)
-                    if response.status_code == 200:
-                        with open(img_path, 'wb') as f:
-                            f.write(response.content)
-                    else:
-                        print(f"Failed to download image for {name}")
-            except Exception as e:
-                print(f"Error downloading image for {name}: {str(e)}")
+        for name, filename in default_images.items():
+            img_path = os.path.join(self.default_images_dir, filename)
+            if not os.path.exists(img_path):
+                print(f"Default image for {name} not found. Please add it manually to the default_images directory.")
+                # We don't download images anymore, user will need to add them manually
         
+        # Use the correct image filenames with proper case and extensions
         default_characters = [
             {
                 "name": "Lily",
@@ -78,7 +72,7 @@ class CharacterManager:
                 "brief_description": "Tsundere hacker with a hidden soft side",
                 "personality": "Tsundere - cold and dismissive on the surface, but caring and protective underneath. Brilliant, sarcastic, and secretly sensitive.",
                 "backstory": "Kei is a prodigy hacker who works as a freelance cybersecurity specialist. She puts up a tough front due to past betrayals but is fiercely loyal to those who earn her trust. She loves cats, energy drinks, and vintage video games.",
-                "avatar_url": os.path.join(self.default_images_dir, "kei.jpg"),
+                "avatar_url": os.path.join(self.default_images_dir, "Kei.jpg"),
                 "memories": [],
                 "created_at": datetime.now().isoformat()
             }
