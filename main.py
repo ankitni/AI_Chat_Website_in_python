@@ -1104,12 +1104,10 @@ def main():
                 character_to_edit = char_manager.get_character(char_to_edit)
                 
                 if character_to_edit:
-                    with st.form("edit_character_form"):
-                        st.subheader(f"Editing {char_to_edit}")
-                        
-                        # Character fields
-                        char_personality = st.text_area("Personality Traits", value=character_to_edit.get("personality", ""), height=100)
-                        char_backstory = st.text_area("Backstory", value=character_to_edit.get("backstory", ""), height=100)
+                    # Check if we're in the image upload step for editing
+                    if "edit_character_info" in st.session_state and "show_edit_image_upload" in st.session_state and st.session_state.show_edit_image_upload:
+                        # Display the image upload interface for editing
+                        st.header(f"Upload Character Image for {st.session_state.edit_character_info['name']}")
                         
                         # Avatar options
                         avatar_option = st.radio("Avatar Option", ["Keep Current", "Default", "Upload Image"])
@@ -1162,49 +1160,77 @@ def main():
                                 # Show the uploaded image
                                 st.success("Image uploaded successfully!")
                                 st.image(file_path, width=150, caption="Uploaded image")
+                        
+                        # Memory section
+                        st.subheader("Character Memories")
+                        memories = character_to_edit.get("memories", [])
+                        
+                        for i, memory in enumerate(memories):
+                            col1, col2 = st.columns([0.8, 0.2])
+                            with col1:
+                                st.markdown(f"<div class='memory-item'>{memory}</div>", unsafe_allow_html=True)
+                            with col2:
+                                if st.button("🗑️", key=f"delete_memory_edit_{i}"):
+                                    char_manager.remove_memory_from_character(char_to_edit, i)
+                                    # Refresh the character data
+                                    character_to_edit = char_manager.get_character(char_to_edit)
+                                    st.rerun()
+                        
+                        new_memory = st.text_area("Add new memory", height=100, key="edit_new_memory_form")
+                        
+                        # Save button
+                        if st.button("Save Changes"):
+                            if not char_avatar and avatar_option != "Keep Current":
+                                st.warning("Please select or upload an image for your character.")
+                            else:
+                                # Update character
+                                updated_data = {
+                                    "personality": st.session_state.edit_character_info["personality"],
+                                    "backstory": st.session_state.edit_character_info["backstory"],
+                                    "avatar_url": char_avatar if avatar_option != "Keep Current" else character_to_edit.get("avatar_url", "")
+                                }
+                                
+                                # Add new memory if provided
+                                if "edit_new_memory_form" in st.session_state and st.session_state.edit_new_memory_form.strip():
+                                    char_manager.add_memory_to_character(char_to_edit, st.session_state.edit_new_memory_form)
+                                
+                                char_manager.update_character(char_to_edit, updated_data)
+                                
+                                # If this is the current character, update it in session state
+                                if st.session_state.current_character and st.session_state.current_character.get("name") == char_to_edit:
+                                    st.session_state.current_character = char_manager.get_character(char_to_edit)
+                                
+                                # Reset the flags
+                                st.session_state.show_edit_image_upload = False
+                                st.session_state.edit_character_info = None
+                                
+                                st.success(f"Character '{char_to_edit}' updated successfully!")
+                                st.rerun()
+                    else:
+                        # First step: Show form to edit character details
+                        with st.form("edit_character_form"):
+                            st.subheader(f"Editing {char_to_edit}")
                             
-                            # Memory section
-                            st.subheader("Character Memories")
-                            memories = character_to_edit.get("memories", [])
+                            # Character fields
+                            char_personality = st.text_area("Personality Traits", value=character_to_edit.get("personality", ""), height=100)
+                            char_backstory = st.text_area("Backstory", value=character_to_edit.get("backstory", ""), height=100)
                             
-                            for i, memory in enumerate(memories):
-                                col1, col2 = st.columns([0.8, 0.2])
-                                with col1:
-                                    st.markdown(f"<div class='memory-item'>{memory}</div>", unsafe_allow_html=True)
-                                with col2:
-                                    if st.button("🗑️", key=f"delete_memory_edit_{i}"):
-                                        char_manager.remove_memory_from_character(char_to_edit, i)
-                                        # Refresh the character data
-                                        character_to_edit = char_manager.get_character(char_to_edit)
-                                        st.rerun()
-                            
-                            new_memory = st.text_area("Add new memory", height=100, key="edit_new_memory_form")
-                            
-                            if st.form_submit_button("Save Changes"):
+                            submit_button_text = "Continue"
+                            if st.form_submit_button(submit_button_text):
                                 if not char_personality:
                                     st.error("Personality cannot be empty.")
                                 else:
-                                    # Update character
-                                    updated_data = {
+                                    # Store character info in session state for the next step
+                                    st.session_state.edit_character_info = {
+                                        "name": char_to_edit,
                                         "personality": char_personality,
                                         "backstory": char_backstory,
-                                        "avatar_url": char_avatar
+                                        "avatar_url": character_to_edit.get("avatar_url", ""),
+                                        "memories": character_to_edit.get("memories", [])
                                     }
-                                    
-                                    # Add new memory if provided
-                                    if "edit_new_memory_form" in st.session_state and st.session_state.edit_new_memory_form.strip():
-                                        char_manager.add_memory_to_character(char_to_edit, st.session_state.edit_new_memory_form)
-                                    
-                                    char_manager.update_character(char_to_edit, updated_data)
-                                    
-                                    # If this is the current character, update it in session state
-                                    if  st.session_state.current_character and st.session_state.current_character.get("name") == char_to_edit:
-                                        st.session_state.current_character = char_manager.get_character(char_to_edit)
-                                    
-                                        st.success(f"Character '{char_to_edit}' updated successfully!")
-                                        st.rerun()
-                                    else:
-                                        st.error(f"Could not find character '{char_to_edit}'")
+                                    # Set a flag to show the image upload interface
+                                    st.session_state.show_edit_image_upload = True
+                                    st.rerun()
                 
         elif character_action == "Delete a Character":
                         # Get list of character names
@@ -1279,9 +1305,14 @@ def main():
             st.success("Image uploaded successfully!")
             st.image(file_path, width=150, caption="Uploaded image")
             st.session_state.temp_avatar_path = file_path
+            char_avatar = file_path  # Set char_avatar to the uploaded file path
         
         # Save button
         if st.button("Save Character"):
+            # Use temp_avatar_path if available and char_avatar is empty
+            if not char_avatar and st.session_state.get('temp_avatar_path'):
+                char_avatar = st.session_state.temp_avatar_path
+                
             if not char_avatar:
                 st.warning("Please select or upload an image for your character.")
             else:
@@ -1434,8 +1465,9 @@ def main():
                         # Add drag and drop area with better instructions
                         st.markdown("""
                         <div class="drag-drop-area">
-                            <p>📁 Click above to browse files or drag and drop your image here</p>
+                            <p>📁 <b>Click the blue 'Browse files' button above</b> or drag and drop your image here</p>
                             <p style="font-size: 0.8em; color: #666;">Supported formats: JPEG, JPG, PNG</p>
+                            <p style="font-size: 0.9em; color: #4e8df5;"><b>⬆️ Look for the blue button above this box!</b></p>
                         </div>
                         """, unsafe_allow_html=True)
                         
@@ -1453,18 +1485,20 @@ def main():
                     st.subheader("Character Memories")
                     memories = edit_char.get("memories", [])
                     
+                    # Store memory to delete in session state
+                    if "memory_to_delete" not in st.session_state:
+                        st.session_state.memory_to_delete = None
+                        
+                    # Display memories
                     for i, memory in enumerate(memories):
                         col1, col2 = st.columns([0.8, 0.2])
                         with col1:
                             st.markdown(f"<div class='memory-item'>{memory}</div>", unsafe_allow_html=True)
                         with col2:
-                            if st.button("🗑️", key=f"delete_memory_edit_{i}"):
-                                char_manager.remove_memory_from_character(
-                                    edit_char["name"], i
-                                )
-                                # Refresh the character
-                                st.session_state.editing_character_name = None
-                                st.rerun()
+                            # Create unique labels for each delete button
+                            delete_label = f"🗑️ {i}"
+                            if st.form_submit_button(delete_label):
+                                st.session_state.memory_to_delete = i
                     
                     new_memory = st.text_area("Add new memory", height=100, key="new_memory_edit")
                     
@@ -1474,6 +1508,8 @@ def main():
                         if st.form_submit_button("💾 Save Changes"):
                             if not char_personality:
                                 st.error("Personality cannot be empty.")
+                            elif avatar_option == "Upload Image" and uploaded_file is None:
+                                st.error("Please upload an image before saving changes.")
                             else:
                                 # Update character
                                 updated_data = {
@@ -1495,6 +1531,16 @@ def main():
                         if st.form_submit_button("❌ Cancel"):
                             st.session_state.editing_character_name = None
                             st.rerun()
+                            
+            # Handle memory deletion outside the form
+            if st.session_state.memory_to_delete is not None:
+                char_manager.remove_memory_from_character(
+                    edit_char["name"], st.session_state.memory_to_delete
+                )
+                # Reset the memory to delete
+                st.session_state.memory_to_delete = None
+                # Refresh the character
+                st.rerun()
     else:
         # Chat interface
         # Back button to return to character selection
